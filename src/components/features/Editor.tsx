@@ -4,7 +4,7 @@ import { useEditor, EditorContent, JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import type { Editor as TiptapEditor } from '@tiptap/core';
 
 interface EditorProps {
@@ -15,10 +15,15 @@ interface EditorProps {
 
 export function Editor({ content, onChange, isEditable = true }: EditorProps) {
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   const handleUpdate = useCallback(({ editor }: { editor: TiptapEditor }) => {
-    onChangeRef.current(editor.getJSON());
+    if (onChangeRef.current) {
+      onChangeRef.current(editor.getJSON());
+    }
   }, []);
 
   const editor = useEditor({

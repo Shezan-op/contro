@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contro - Content Operating System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg: '#121212',
+                        surface: '#1A1A1A',
+                        text: '#F5F5F5',
+                        muted: '#A1A1AA',
+                        border: '#2A2A2A',
+                    },
+                    fontFamily: {
+                        sans: ['"Geist"', 'sans-serif'],
+                        display: ['"Geist"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts: Geist & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <!-- Lenis for smooth scrolling -->
+    <script src="https://unpkg.com/@studio-freight/lenis@1.0.33/dist/lenis.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #121212;
+            --surface: #1A1A1A;
+            --text: #F5F5F5;
+            --muted: #A1A1AA;
+            --border: #2A2A2A;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+
+        h1, h2, h3, h4, .display {
+            font-family: 'Geist', sans-serif;
+        }
+
+        /* Subtle Noise Overlay */
+        .noise-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.04;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* Shine Effect for Footer */
+        .footer-shine {
+            background: linear-gradient(
+                to right,
+                var(--border) 0%,
+                #666666 50%,
+                var(--border) 100%
+            );
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: shine 4s linear infinite;
+        }
+
+        @keyframes shine {
+            0% {
+                background-position: -100% center;
+            }
+            100% {
+                background-position: 100% center;
+            }
+        }
+
+        /* Custom Button */
+        .btn-primary {
+            background-color: var(--text);
+            color: var(--bg);
+            padding: 1rem 2rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px -10px rgba(255, 255, 255, 0.2);
+        }
+
+        /* Image Mask for Parallax */
+        .img-mask {
+            clip-path: inset(100% 0 0 0);
+        }
+
+        .text-reveal {
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
+        }
+
+        .text-reveal-inner {
+            transform: translateY(100%);
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-white selection:text-black">
+    <div class="noise-bg"></div>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 w-full z-50 px-8 py-6 flex justify-between items-center mix-blend-difference">
+        <div class="text-xl font-bold tracking-widest uppercase">Contro.</div>
+        <div class="hidden md:flex items-center gap-8 text-sm font-medium">
+            <a href="#features" class="hover:text-muted transition-colors">Features</a>
+            <a href="#dashboard" class="hover:text-muted transition-colors">Platform</a>
+            <a href="#start" class="btn-primary !py-2 !px-5 !text-sm">Get Started</a>
+        </div>
+    </nav>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="h-screen flex flex-col justify-center items-center text-center px-4 relative z-10">
+            <div class="space-y-6 max-w-5xl">
+                <div class="text-reveal inline-block overflow-hidden">
+                    <h1 class="text-reveal-inner text-6xl md:text-8xl lg:text-9xl font-bold tracking-tighter leading-[0.9]">
+                        The Content
+                    </h1>
+                </div>
+                <br>
+                <div class="text-reveal inline-block overflow-hidden">
+                    <h1 class="text-reveal-inner text-6xl md:text-8xl lg:text-9xl font-bold tracking-tighter leading-[0.9]">
+                        Operating System.
+                    </h1>
+                </div>
+                
+                <div class="mt-8 overflow-hidden text-reveal opacity-0" id="hero-subtitle">
+                    <p class="text-xl md:text-2xl text-muted max-w-2xl mx-auto font-light">
+                        Write once. Deploy endlessly. A calm, focused environment designed to help you capture, organize, retrieve, and reuse content.
+                    </p>
+                </div>
+
+                <div class="mt-12 opacity-0" id="hero-cta">
+                    <a href="https://contro.vercel.app/" class="btn-primary text-lg" target="_blank" rel="noopener noreferrer">
+                        Enter the Workspace
+                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Preview -->
+        <section id="dashboard" class="py-24 px-4 md:px-12 w-full relative z-20">
+            <div class="max-w-7xl mx-auto rounded-3xl overflow-hidden bg-surface border border-border shadow-2xl relative" id="dashboard-container">
+                <img src="/contro-images/desktop-dashboard.png" alt="Contro Dashboard" class="w-full h-auto img-mask" id="dashboard-img" onerror="this.src='https://placehold.co/2400x1600/1A1A1A/3A3A3A?text=Contro+Dashboard'">
+            </div>
+        </section>
+
+        <!-- Pinned Features Section -->
+        <section id="features" class="py-32 relative bg-bg">
+            <div class="max-w-7xl mx-auto px-4 md:px-12 flex flex-col md:flex-row gap-16">
+                <!-- Left: Pinned Text -->
+                <div class="w-full md:w-1/2" id="pinned-content">
+                    <h2 class="text-4xl md:text-6xl font-bold tracking-tight mb-8">Stop rewriting the same ideas.</h2>
+                    <p class="text-xl text-muted">Contro removes the friction between having an idea and retrieving it when it matters most.</p>
+                </div>
+                
+                <!-- Right: Scrolling Cards -->
+                <div class="w-full md:w-1/2 space-y-32" id="feature-cards">
+                    <div class="feature-card">
+                        <div class="text-6xl text-border font-bold mb-4">01</div>
+                        <h3 class="text-3xl font-bold mb-4">Capture</h3>
+                        <p class="text-muted text-lg">A distraction-free writing environment. Offline-first so you never lose a draft. Write at the speed of thought.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="text-6xl text-border font-bold mb-4">02</div>
+                        <h3 class="text-3xl font-bold mb-4">Organize</h3>
+                        <p class="text-muted text-lg">Projects are clean, single-level containers. No infinite subfolders. No losing context. Just focused spaces.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="text-6xl text-border font-bold mb-4">03</div>
+                        <h3 class="text-3xl font-bold mb-4">Retrieve</h3>
+                        <p class="text-muted text-lg">Instant search across all your drafts, projects, and assets. Find that hook from 6 months ago in 2 seconds.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="text-6xl text-border font-bold mb-4">04</div>
+                        <h3 class="text-3xl font-bold mb-4">Reuse</h3>
+                        <p class="text-muted text-lg">The Inventory acts as a central repository for the assets you use repeatedly. Write once, deploy endlessly.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Mobile App Section -->
+        <section class="py-32 bg-surface relative overflow-hidden">
+            <div class="max-w-7xl mx-auto px-4 md:px-12 flex flex-col md:flex-row items-center gap-16">
+                <div class="w-full md:w-1/2 z-10">
+                    <h2 class="text-4xl md:text-6xl font-bold tracking-tight mb-8 leading-tight">Designed for<br>the creative mind.</h2>
+                    <p class="text-xl text-muted mb-10">Access your content library from anywhere. The mobile experience is crafted to be as powerful as the desktop, ensuring your workflow never stops.</p>
+                    <ul class="space-y-4">
+                        <li class="flex items-center gap-4 text-lg">
+                            <div class="w-2 h-2 rounded-full bg-text"></div> Offline-first architecture
+                        </li>
+                        <li class="flex items-center gap-4 text-lg">
+                            <div class="w-2 h-2 rounded-full bg-text"></div> Sub-second interactions
+                        </li>
+                        <li class="flex items-center gap-4 text-lg">
+                            <div class="w-2 h-2 rounded-full bg-text"></div> Minimalist, calm interface
+                        </li>
+                    </ul>
+                </div>
+                <div class="w-full md:w-1/2 flex justify-center relative">
+                    <div class="absolute inset-0 bg-gradient-to-r from-bg/20 to-transparent z-10 pointer-events-none"></div>
+                    <img src="/contro-images/mobile-dashboard.png" alt="Contro Mobile" class="rounded-3xl shadow-2xl max-w-sm w-full border border-border" id="mobile-img" onerror="this.src='https://placehold.co/800x1600/1A1A1A/3A3A3A?text=Mobile'">
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="pt-32 pb-8 bg-bg relative overflow-hidden flex flex-col items-center">
+            <div class="text-center mb-24 z-10 px-4">
+                <h2 class="text-3xl md:text-5xl font-bold mb-8">Ready to take control?</h2>
+                <a href="https://contro.vercel.app/" class="btn-primary text-lg" target="_blank" rel="noopener noreferrer">Start Writing Free</a>
+            </div>
+
+            <!-- The Massive Footer Text with Shine Effect -->
+            <div class="w-full overflow-hidden flex justify-center items-end" style="height: clamp(100px, 20vw, 300px);">
+                <h1 class="text-[clamp(6rem,20vw,24rem)] font-black tracking-tighter leading-none footer-shine select-none pointer-events-none uppercase">
+                    CONTRO
+                </h1>
+            </div>
+            
+            <div class="w-full flex justify-between items-center px-8 pt-8 mt-8 border-t border-border/50 text-sm text-muted z-10 flex-col md:flex-row gap-4">
+                <p>&copy; 2026 Contro. All rights reserved.</p>
+                <div class="flex gap-6">
+                    <a href="#" class="hover:text-text transition-colors">Twitter</a>
+                    <a href="#" class="hover:text-text transition-colors">LinkedIn</a>
+                    <a href="#" class="hover:text-text transition-colors">Privacy</a>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        // Initialize Lenis for smooth scrolling
+        const lenis = new Lenis({
+            duration: 1.2,
+            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            direction: 'vertical',
+            gestureDirection: 'vertical',
+            smooth: true,
+            mouseMultiplier: 1,
+            smoothTouch: false,
+            touchMultiplier: 2,
+            infinite: false,
+        });
+
+        function raf(time) {
+            lenis.raf(time);
+            requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+
+        // Register ScrollTrigger
+        gsap.registerPlugin(ScrollTrigger);
+
+        // Hero Animation
+        const heroTl = gsap.timeline({ defaults: { ease: "power4.out" } });
+        
+        heroTl.to(".text-reveal-inner", {
+            y: "0%",
+            duration: 1.2,
+            stagger: 0.15,
+            delay: 0.2
+        })
+        .to("#hero-subtitle", {
+            opacity: 1,
+            clipPath: "polygon(0 0, 100% 0, 100% 100%, 0% 100%)",
+            duration: 1,
+        }, "-=0.6")
+        .to("#hero-cta", {
+            opacity: 1,
+            y: 0,
+            duration: 1
+        }, "-=0.6");
+
+        gsap.set("#hero-cta", { y: 20 });
+
+        // Dashboard Image Reveal & Parallax
+        gsap.to(".img-mask", {
+            clipPath: "inset(0% 0 0 0)",
+            duration: 1.5,
+            ease: "power4.inOut",
+            scrollTrigger: {
+                trigger: "#dashboard",
+                start: "top 80%",
+            }
+        });
+
+        gsap.to("#dashboard-img", {
+            yPercent: 15,
+            ease: "none",
+            scrollTrigger: {
+                trigger: "#dashboard",
+                start: "top bottom",
+                end: "bottom top",
+                scrub: true
+            }
+        });
+
+        // Pinned Features Section
+        ScrollTrigger.matchMedia({
+            // Desktop only pinning
+            "(min-width: 768px)": function() {
+                ScrollTrigger.create({
+                    trigger: "#features",
+                    start: "top top",
+                    end: "bottom bottom",
+                    pin: "#pinned-content",
+                    pinSpacing: false
+                });
+            }
+        });
+
+        // Feature Cards Fade In
+        const featureCards = gsap.utils.toArray('.feature-card');
+        featureCards.forEach(card => {
+            gsap.fromTo(card, 
+                { opacity: 0.2, y: 50 },
+                { 
+                    opacity: 1, 
+                    y: 0,
+                    duration: 0.8,
+                    scrollTrigger: {
+                        trigger: card,
+                        start: "top 70%",
+                        end: "top 40%",
+                        scrub: 1
+                    }
+                }
+            );
+        });
+
+        // Mobile App Parallax
+        gsap.fromTo("#mobile-img", 
+            { y: 100 },
+            { 
+                y: -50,
+                scrollTrigger: {
+                    trigger: "#mobile-img",
+                    start: "top bottom",
+                    end: "bottom top",
+                    scrub: 1
+                }
+            }
+        );
+    </script>
+</body>
+</html>

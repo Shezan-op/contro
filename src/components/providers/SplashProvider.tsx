@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { LazyMotion, domAnimation, m } from "framer-motion";
 
 export function SplashProvider({ children }: { children: React.ReactNode }) {
-  const [showSplash, setShowSplash] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     const hasSeenSplash = sessionStorage.getItem("contro_seen_splash");
-    if (!hasSeenSplash) {
-      setShowSplash(true);
+    if (hasSeenSplash) {
+      setShowSplash(false);
+    } else {
       const timer = setTimeout(() => {
         sessionStorage.setItem("contro_seen_splash", "true");
         setShowSplash(false);

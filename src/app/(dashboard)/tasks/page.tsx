@@ -44,22 +44,7 @@ export default function TasksPage() {
     return matchesSearch;
   });
 
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!workspaceId || !newTaskTitle.trim()) return;
-    
-    try {
-      await TaskService.create(workspaceId, newTaskTitle.trim(), {
-        body: { subtasks: [] },
-      });
-      await refreshData();
-      setNewTaskTitle("");
-      toast('Task added', 'success');
-    } catch (error) {
-      console.error(error);
-      toast('Failed to add task', 'error');
-    }
-  };
+
 
   const handleToggleCompletion = async (task: UniversalContent) => {
     await TaskService.toggleCompletion(task.id, !task.isCompleted);
@@ -79,15 +64,15 @@ export default function TasksPage() {
 
   const handleAddSubtask = async (task: UniversalContent, text: string) => {
     if (!text.trim()) return;
-    const currentBody = (task.body as any) || { subtasks: [] };
-    const subtasks = currentBody.subtasks || [];
+    const currentBody = (task.body as Record<string, unknown>) || { subtasks: [] };
+    const subtasks = (currentBody.subtasks as Subtask[]) || [];
     const newSubtask = { id: crypto.randomUUID(), text, isCompleted: false };
     await handleUpdate(task.id, { body: { ...currentBody, subtasks: [...subtasks, newSubtask] } });
   };
 
   const handleToggleSubtask = async (task: UniversalContent, subtaskId: string) => {
-    const currentBody = (task.body as any) || { subtasks: [] };
-    const subtasks = currentBody.subtasks || [];
+    const currentBody = (task.body as Record<string, unknown>) || { subtasks: [] };
+    const subtasks = (currentBody.subtasks as Subtask[]) || [];
     const updated = subtasks.map((s: Subtask) => 
       s.id === subtaskId ? { ...s, isCompleted: !s.isCompleted } : s
     );
@@ -116,7 +101,7 @@ export default function TasksPage() {
             <button 
               key={mode}
               type="button" 
-              onClick={() => setFilterMode(mode as any)}
+              onClick={() => setFilterMode(mode as "active" | "completed" | "all")}
               className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-md transition capitalize ${
                 filterMode === mode 
                   ? "bg-[var(--text)] text-[var(--background)] shadow-sm" 
@@ -130,7 +115,29 @@ export default function TasksPage() {
       </div>
       
       <div className="space-y-6">
-        <form onSubmit={handleCreateTask} className="flex items-center gap-4 p-4 bg-[var(--background)] border-2 border-[var(--border)] rounded-xl focus-within:border-[var(--text)] transition-colors shadow-sm group">
+        <form 
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!workspaceId) {
+              toast('Workspace not initialized. Please refresh.', 'error');
+              return;
+            }
+            if (!newTaskTitle.trim()) return;
+            
+            try {
+              await TaskService.create(workspaceId, newTaskTitle.trim(), {
+                body: { subtasks: [] },
+              });
+              await refreshData();
+              setNewTaskTitle("");
+              toast('Task added', 'success');
+            } catch (error) {
+              console.error(error);
+              toast('Failed to add task', 'error');
+            }
+          }}
+          className="flex items-center gap-4 p-4 bg-[var(--background)] border-2 border-[var(--border)] rounded-xl focus-within:border-[var(--text)] transition-colors shadow-sm group"
+        >
           <div className="w-6 h-6 rounded-md border-2 border-[var(--border)] flex-shrink-0 group-focus-within:border-[var(--muted)] transition-colors" />
           <input
             aria-label="New task title"
@@ -167,8 +174,8 @@ export default function TasksPage() {
             <AnimatePresence>
               {filteredTasks.map(task => {
                 const isExpanded = expandedTaskId === task.id;
-                const body = (task.body as any) || {};
-                const subtasks: Subtask[] = body.subtasks || [];
+                const body = (task.body as Record<string, unknown>) || {};
+                const subtasks: Subtask[] = (body.subtasks as Subtask[]) || [];
                 const completedSubtasks = subtasks.filter(s => s.isCompleted).length;
                 
                 return (
