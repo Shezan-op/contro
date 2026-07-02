@@ -1,0 +1,60 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+:root {
+  /* Light Theme Colors */
+  --background: #FAFAFA;
+  --surface: #FFFFFF;
+  --text: #1A1A1A;
+  --muted: #6B7280;
+  --border: #E5E7EB;
+
+  /* Accent */
+  --accent: #1A1A1A;
+  --accent-foreground: #FFFFFF;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark Theme Colors */
+    --background: #121212;
+    --surface: #1A1A1A;
+    --text: #F5F5F5;
+    --muted: #A1A1AA;
+    --border: #2A2A2A;
+
+    --accent: #F5F5F5;
+    --accent-foreground: #121212;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--text);
+  
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--text);
+  
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted);
+
+  --font-sans: var(--font-geist-sans);
+  --font-body: var(--font-source-sans);
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+}
+
+body {
+  background: var(--background);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
