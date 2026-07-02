@@ -12,7 +12,7 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
   const { loadInitialData } = useAppStore();
 
   useEffect(() => {
-    const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/splash');
+    const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/signup');
     if (!isPublicRoute && readAuthProfile()) {
       const store = useAppStore.getState();
       if (store.isLoading && !store.workspaceId) {

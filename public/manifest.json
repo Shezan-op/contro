@@ -3,6 +3,7 @@
   "short_name": "Contro",
   "description": "A local-first, offline-capable Content Operating System.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#121212",
