@@ -15,8 +15,8 @@ flowchart TD
     classDef endpoint fill:#121212,stroke:#F5F5F5,stroke-width:4px,color:#F5F5F5;
 
     %% Entry Points
-    Entry((Landing Page)):::entry --> ClickStart([Click 'Get Started']):::action
-    Entry --> ClickLogin([Click 'Login' in Header]):::action
+    Entry((Landing Page)):::entry --> ClickStart(["Click Get Started"]):::action
+    Entry --> ClickLogin(["Click Login in Header"]):::action
     
     ClickStart --> AuthScreen[Auth / Login Screen]:::screen
     ClickLogin --> AuthScreen
@@ -31,17 +31,17 @@ flowchart TD
     SystemAuth -- Error --> AuthScreen
     
     %% Dashboard Hub
-    Dashboard --> ClickTasks([Open Tasks]):::action
-    Dashboard --> ClickInventory([Open Inventory]):::action
-    Dashboard --> ClickLeadMagnets([Open Lead Magnets]):::action
-    Dashboard --> ClickWriter([Open Writer]):::action
-    Dashboard --> ClickProjects([Open Projects]):::action
+    Dashboard --> ClickTasks(["Open Tasks"]):::action
+    Dashboard --> ClickInventory(["Open Inventory"]):::action
+    Dashboard --> ClickLeadMagnets(["Open Lead Magnets"]):::action
+    Dashboard --> ClickWriter(["Open Writer"]):::action
+    Dashboard --> ClickProjects(["Open Projects"]):::action
     
     %% Tasks Flow
     ClickTasks --> TasksScreen[Tasks Hub]:::screen
-    TasksScreen --> CreateTask([Create New Task]):::action
-    TasksScreen --> ViewTask([View Task Details]):::action
-    ViewTask --> ManageSubtasks([Manage Nested Subtasks]):::action
+    TasksScreen --> CreateTask(["Create New Task"]):::action
+    TasksScreen --> ViewTask(["View Task Details"]):::action
+    ViewTask --> ManageSubtasks(["Manage Nested Subtasks"]):::action
     ManageSubtasks --> SystemSaveTasks[System: Dexie IndexedDB Save]:::system
     
     %% Inventory Flow
@@ -52,32 +52,32 @@ flowchart TD
     FilterInventory -- Offers --> OffersView[Offers Library]:::screen
     FilterInventory -- Scripts --> ScriptsView[DM Scripts]:::screen
     
-    HooksView --> CopyAsset([Copy to Clipboard]):::action
+    HooksView --> CopyAsset(["Copy to Clipboard"]):::action
     CTAsView --> CopyAsset
     OffersView --> CopyAsset
     ScriptsView --> CopyAsset
     
     %% Lead Magnets Flow
     ClickLeadMagnets --> LeadMagnetsScreen[Lead Magnets Hub]:::screen
-    LeadMagnetsScreen --> CreateMagnet([Create New Magnet]):::action
+    LeadMagnetsScreen --> CreateMagnet(["Create New Magnet"]):::action
     CreateMagnet --> MagnetEditor[Lead Magnet Editor]:::screen
-    MagnetEditor --> AddPage([Add Page]):::action
-    MagnetEditor --> WriteContent([Write Content (Page-by-Page)]):::action
+    MagnetEditor --> AddPage(["Add Page"]):::action
+    MagnetEditor --> WriteContent(["Write Content (Page-by-Page)"]):::action
     WriteContent --> SystemSaveMagnet[System: Auto-Save]:::system
     
     %% Writer Flow
     ClickWriter --> WriterScreen[TipTap Rich Text Editor]:::screen
-    WriterScreen --> WritePost([Draft Content]):::action
-    WritePost --> UseSidebar([Open Meta Panels]):::action
-    UseSidebar --> SetSchedule([Set Schedule Date]):::action
-    UseSidebar --> AddTags([Add Tags/Meta]):::action
+    WriterScreen --> WritePost(["Draft Content"]):::action
+    WritePost --> UseSidebar(["Open Meta Panels"]):::action
+    UseSidebar --> SetSchedule(["Set Schedule Date"]):::action
+    UseSidebar --> AddTags(["Add Tags/Meta"]):::action
     WritePost --> SystemSavePost[System: Save as UniversalContent]:::system
     
     %% Projects Flow
     ClickProjects --> ProjectsScreen[Projects Hub]:::screen
-    ProjectsScreen --> CreateProject([Create Project]):::action
-    ProjectsScreen --> ViewProject([View Project Details]):::action
-    ViewProject --> LinkContent([Link Tasks & Drafts]):::action
+    ProjectsScreen --> CreateProject(["Create Project"]):::action
+    ProjectsScreen --> ViewProject(["View Project Details"]):::action
+    ViewProject --> LinkContent(["Link Tasks & Drafts"]):::action
     
     %% System Endpoints
     SystemSaveTasks --> EndSave((State Saved)):::endpoint
