@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 import { AuthCheck } from "@/components/providers/AuthCheck";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,6 +19,11 @@ const sourceSans = Source_Sans_3({
 export const metadata: Metadata = {
   title: "Contro - Content Operating System",
   description: "A local-first, offline-capable Content Operating System for writing, storing, and organizing content.",
+  manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#121212",
 };
 
 export default function RootLayout({
@@ -36,6 +42,7 @@ export default function RootLayout({
           <ToastProvider>
             <AuthCheck>
               {children}
+              <Analytics />
             </AuthCheck>
           </ToastProvider>
         </ThemeProvider>
