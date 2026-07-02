@@ -22,6 +22,7 @@ interface AppState {
   isOffline: boolean;
   isLoading: boolean;
   theme: Theme;
+  error: string | null;
   
   loadInitialData: () => Promise<void>;
   refreshData: () => Promise<void>;
@@ -41,9 +42,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   isOffline: false,
   isLoading: true,
   theme: 'system',
+  error: null,
   
   loadInitialData: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const workspace = await WorkspaceService.getDefaultWorkspace();
       const workspaceId = workspace.id;
@@ -51,18 +53,27 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Initialize default inventory libraries if needed
       await InventoryService.initializeDefaults(workspaceId);
 
-      const projects = await ProjectService.getAll(workspaceId);
-      const tasks = await TaskService.getActive(workspaceId);
-      const drafts = await ContentService.getDrafts(workspaceId);
-      const inventoryLibraries = await InventoryService.getLibraries(workspaceId);
-      const inventoryCounts = await InventoryService.getLibraryCounts(workspaceId);
-      const leadMagnets = await LeadMagnetService.getAll(workspaceId);
-      
-      const calendarItems = await db.content
-        .where('workspaceId')
-        .equals(workspaceId)
-        .filter(c => !c.isTrashed && !!c.scheduledFor)
-        .toArray();
+      const [
+        projects,
+        tasks,
+        drafts,
+        inventoryLibraries,
+        inventoryCounts,
+        leadMagnets,
+        calendarItems
+      ] = await Promise.all([
+        ProjectService.getAll(workspaceId),
+        TaskService.getActive(workspaceId),
+        ContentService.getDrafts(workspaceId),
+        InventoryService.getLibraries(workspaceId),
+        InventoryService.getLibraryCounts(workspaceId),
+        LeadMagnetService.getAll(workspaceId),
+        db.content
+          .where('workspaceId')
+          .equals(workspaceId)
+          .filter(c => !c.isTrashed && !!c.scheduledFor)
+          .toArray()
+      ]);
       
       set({ 
         workspaceId,
@@ -77,7 +88,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     } catch (error) {
       console.error("Failed to load local data", error);
-      set({ isLoading: false });
+      set({ isLoading: false, error: "Failed to load database. Please try reloading." });
     }
   },
 
@@ -86,18 +97,27 @@ export const useAppStore = create<AppState>((set, get) => ({
       const workspaceId = get().workspaceId;
       if (!workspaceId) return;
 
-      const projects = await ProjectService.getAll(workspaceId);
-      const tasks = await TaskService.getActive(workspaceId);
-      const drafts = await ContentService.getDrafts(workspaceId);
-      const inventoryLibraries = await InventoryService.getLibraries(workspaceId);
-      const inventoryCounts = await InventoryService.getLibraryCounts(workspaceId);
-      const leadMagnets = await LeadMagnetService.getAll(workspaceId);
-      
-      const calendarItems = await db.content
-        .where('workspaceId')
-        .equals(workspaceId)
-        .filter(c => !c.isTrashed && !!c.scheduledFor)
-        .toArray();
+      const [
+        projects,
+        tasks,
+        drafts,
+        inventoryLibraries,
+        inventoryCounts,
+        leadMagnets,
+        calendarItems
+      ] = await Promise.all([
+        ProjectService.getAll(workspaceId),
+        TaskService.getActive(workspaceId),
+        ContentService.getDrafts(workspaceId),
+        InventoryService.getLibraries(workspaceId),
+        InventoryService.getLibraryCounts(workspaceId),
+        LeadMagnetService.getAll(workspaceId),
+        db.content
+          .where('workspaceId')
+          .equals(workspaceId)
+          .filter(c => !c.isTrashed && !!c.scheduledFor)
+          .toArray()
+      ]);
       
       set({ 
         projects, 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
-import { Plus, FolderOpen, Search, Pin, LayoutGrid, List, MoreVertical, Trash2, Archive, Copy } from "lucide-react";
+import { Plus, FolderOpen, Pin, LayoutGrid, List, Trash2, Archive, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { ProjectService } from "@/services/ProjectService";
@@ -85,7 +85,7 @@ export default function ProjectsPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Projects</h1>
           <p className="text-[var(--muted)] mt-1">Organize your content campaigns and collections.</p>
         </div>
-        <button 
+        <button type="button" 
           onClick={() => setIsCreating(true)}
           className="flex items-center justify-center gap-2 bg-[var(--text)] text-[var(--background)] px-4 py-2 rounded-lg font-medium hover:opacity-90 transition active:scale-95 shadow-sm"
         >
@@ -101,7 +101,7 @@ export default function ProjectsPage() {
           </div>
           <div className="flex-1 flex flex-col gap-2 w-full">
             <input
-              autoFocus
+              aria-label="Project name"
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -109,6 +109,7 @@ export default function ProjectsPage() {
               className="bg-transparent border-none outline-none font-medium placeholder:text-[var(--muted)] w-full"
             />
             <input
+              aria-label="Project description"
               type="text"
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
@@ -144,13 +145,13 @@ export default function ProjectsPage() {
           />
         </div>
         <div className="flex items-center gap-1 p-1 bg-[var(--surface)] border border-[var(--border)] rounded-lg">
-          <button 
+          <button type="button" 
             onClick={() => setViewMode("grid")}
             className={`p-1.5 rounded-md transition ${viewMode === "grid" ? "bg-[var(--background)] text-[var(--text)] shadow-sm" : "text-[var(--muted)] hover:text-[var(--text)]"}`}
           >
             <LayoutGrid size={16} />
           </button>
-          <button 
+          <button type="button" 
             onClick={() => setViewMode("list")}
             className={`p-1.5 rounded-md transition ${viewMode === "list" ? "bg-[var(--background)] text-[var(--text)] shadow-sm" : "text-[var(--muted)] hover:text-[var(--text)]"}`}
           >
@@ -168,7 +169,7 @@ export default function ProjectsPage() {
           <p className="text-[var(--muted)] max-w-md mx-auto mb-6">
             Group related content together in projects for better organization.
           </p>
-          <button 
+          <button type="button" 
             onClick={() => setIsCreating(true)}
             className="flex items-center gap-2 bg-[var(--background)] border border-[var(--border)] text-[var(--text)] px-4 py-2 rounded-lg font-medium hover:bg-[var(--surface)] transition active:scale-95 shadow-sm"
           >
@@ -191,7 +192,7 @@ export default function ProjectsPage() {
                   <FolderOpen size={24} className="text-[var(--text)]" />
                 </div>
                 {viewMode === "grid" && (
-                  <button 
+                  <button type="button" 
                     onClick={(e) => handleTogglePin(e, project.id, project.isStarred)}
                     className={`p-2 rounded-full transition ${project.isStarred ? 'text-[var(--text)]' : 'text-[var(--muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--background)]'}`}
                   >
@@ -212,16 +213,16 @@ export default function ProjectsPage() {
 
               {viewMode === "list" && (
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={(e) => handleTogglePin(e, project.id, project.isStarred)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title={project.isStarred ? "Unpin" : "Pin"}>
+                  <button type="button" onClick={(e) => handleTogglePin(e, project.id, project.isStarred)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title={project.isStarred ? "Unpin" : "Pin"}>
                     <Pin size={18} className={project.isStarred ? 'fill-current' : ''} />
                   </button>
-                  <button onClick={(e) => handleDuplicate(e, project.id)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Duplicate">
+                  <button type="button" onClick={(e) => handleDuplicate(e, project.id)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Duplicate">
                     <Copy size={18} />
                   </button>
-                  <button onClick={(e) => handleArchive(e, project.id)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Archive">
+                  <button type="button" onClick={(e) => handleArchive(e, project.id)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Archive">
                     <Archive size={18} />
                   </button>
-                  <button onClick={(e) => handleDelete(e, project.id)} className="p-2 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition" title="Delete">
+                  <button type="button" onClick={(e) => handleDelete(e, project.id)} className="p-2 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition" title="Delete">
                     <Trash2 size={18} />
                   </button>
                 </div>
@@ -229,13 +230,13 @@ export default function ProjectsPage() {
 
               {viewMode === "grid" && (
                 <div className="mt-4 pt-4 border-t border-[var(--border)] flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={(e) => handleDuplicate(e, project.id)} className="p-1.5 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Duplicate">
+                  <button type="button" onClick={(e) => handleDuplicate(e, project.id)} className="p-1.5 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Duplicate">
                     <Copy size={16} />
                   </button>
-                  <button onClick={(e) => handleArchive(e, project.id)} className="p-1.5 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Archive">
+                  <button type="button" onClick={(e) => handleArchive(e, project.id)} className="p-1.5 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Archive">
                     <Archive size={16} />
                   </button>
-                  <button onClick={(e) => handleDelete(e, project.id)} className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition" title="Delete">
+                  <button type="button" onClick={(e) => handleDelete(e, project.id)} className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition" title="Delete">
                     <Trash2 size={16} />
                   </button>
                 </div>

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, use, useMemo, useState, useCallback } from 'react';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, LazyMotion, domAnimation, m } from 'framer-motion';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -34,13 +34,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const contextValue = useMemo(() => ({ toast: addToast }), [addToast]);
+
   return (
-    <ToastContext.Provider value={{ toast: addToast }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+        <LazyMotion features={domAnimation}>
         <AnimatePresence>
           {toasts.map((t) => (
-            <motion.div
+            <m.div
               key={t.id}
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -59,22 +62,24 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               
               <span className="flex-1 text-sm font-medium">{t.message}</span>
               
-              <button 
+              <button type="button" 
                 onClick={() => removeToast(t.id)}
                 className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-md transition"
+                aria-label="Dismiss notification"
               >
                 <X size={14} className="opacity-70 hover:opacity-100" />
               </button>
-            </motion.div>
+            </m.div>
           ))}
         </AnimatePresence>
+        </LazyMotion>
       </div>
     </ToastContext.Provider>
   );
 }
 
 export function useToast() {
-  const context = useContext(ToastContext);
+  const context = use(ToastContext);
   if (context === undefined) {
     throw new Error('useToast must be used within a ToastProvider');
   }

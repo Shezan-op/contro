@@ -62,6 +62,7 @@ export interface UniversalContent {
   platform: ContentPlatform;
   status: ContentStatus;
   scheduledFor: string | null; // ISO Date string
+  createdAt?: string; // ISO Date string
   isStarred: boolean;
   isArchived: boolean;
   isTrashed: boolean;

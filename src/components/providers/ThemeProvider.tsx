@@ -1,8 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
 
-type Theme = 'light' | 'dark' | 'system';
+export type Theme = 'light' | 'dark' | 'system';
 
 interface ThemeContextType {
   theme: Theme;
@@ -13,21 +13,13 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('system');
-  const [mounted, setMounted] = useState(false);
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'system';
+    const savedTheme = localStorage.getItem('contro_theme') as Theme | null;
+    return savedTheme || 'system';
+  });
 
   useEffect(() => {
-    setMounted(true);
-    // On mount, read from localStorage
-    const savedTheme = localStorage.getItem('contro_theme') as Theme;
-    if (savedTheme) {
-      setThemeState(savedTheme);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-
     const root = document.documentElement;
     root.removeAttribute('data-theme');
 
@@ -39,35 +31,31 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     localStorage.setItem('contro_theme', theme);
-  }, [theme, mounted]);
+  }, [theme]);
 
-  const setTheme = (newTheme: Theme) => {
+  const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-  };
+  }, []);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setThemeState((prev) => {
       if (prev === 'light') return 'dark';
       if (prev === 'dark') return 'system';
       return 'light';
     });
-  };
+  }, []);
 
-  // Prevent flash of incorrect theme before hydration
-  if (!mounted) {
-    // Return children with opacity 0 to prevent layout shift but hide flash
-    return <div style={{ visibility: 'hidden' }}>{children}</div>;
-  }
+  const contextValue = useMemo(() => ({ theme, setTheme, toggleTheme }), [theme, setTheme, toggleTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );
 }
 
 export function useTheme() {
-  const context = useContext(ThemeContext);
+  const context = use(ThemeContext);
   if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }

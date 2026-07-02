@@ -3,15 +3,16 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { InventoryService } from "@/services/InventoryService";
-import { ArrowLeft, Plus, Trash2, Save, GripVertical } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { ArrowLeft, Plus, Trash2, GripVertical } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { InventoryLibrary, InventoryItem } from "@/lib/db";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import Link from "next/link";
 
-export default function InventoryLibraryPage({ params }: { params: { id: string } }) {
+export default function InventoryLibraryPage() {
+  const params = useParams<{ id: string }>();
   const router = useRouter();
   const { toast } = useToast();
   const { workspaceId, inventoryLibraries, refreshData } = useAppStore();
@@ -85,7 +86,7 @@ export default function InventoryLibraryPage({ params }: { params: { id: string 
     return (
       <div className="max-w-4xl mx-auto p-8 text-center py-24">
         <h1 className="text-2xl font-semibold mb-2">Library not found</h1>
-        <p className="text-[var(--muted)] mb-6">This library may have been deleted or you don't have access.</p>
+        <p className="text-[var(--muted)] mb-6">This library may have been deleted or you don&apos;t have access.</p>
         <Link href="/inventory" className="text-blue-500 hover:underline">Return to Inventory</Link>
       </div>
     );
@@ -95,13 +96,15 @@ export default function InventoryLibraryPage({ params }: { params: { id: string 
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8 animate-fade-in">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3 w-full">
-          <button 
+          <button type="button" 
             onClick={() => router.push('/inventory')}
             className="p-2 -ml-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] rounded-md transition"
+            aria-label="Back to inventory"
           >
             <ArrowLeft size={20} />
           </button>
           <input
+            aria-label="Library name"
             type="text"
             value={editingName}
             onChange={(e) => setEditingName(e.target.value)}
@@ -111,10 +114,11 @@ export default function InventoryLibraryPage({ params }: { params: { id: string 
           />
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button 
+          <button type="button" 
             onClick={() => setIsDeleting(true)}
             className="p-2 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition"
             title="Delete Library"
+            aria-label="Delete library"
           >
             <Trash2 size={20} />
           </button>
@@ -129,6 +133,7 @@ export default function InventoryLibraryPage({ params }: { params: { id: string 
             </div>
             <div className="flex-1 space-y-2">
               <textarea
+                aria-label="Inventory item text"
                 value={item.text}
                 onChange={(e) => {
                   const newItems = [...items];
@@ -141,9 +146,10 @@ export default function InventoryLibraryPage({ params }: { params: { id: string 
               />
             </div>
             <div className="pt-1">
-              <button 
+              <button type="button" 
                 onClick={() => handleDeleteItem(item.id)}
                 className="p-1.5 text-[var(--muted)] hover:text-red-500 hover:bg-red-500/10 rounded-md transition opacity-0 group-hover:opacity-100"
+                aria-label="Delete inventory item"
               >
                 <Trash2 size={16} />
               </button>
@@ -151,7 +157,7 @@ export default function InventoryLibraryPage({ params }: { params: { id: string 
           </div>
         ))}
         
-        <button 
+        <button type="button" 
           onClick={handleAddItem}
           className="w-full p-4 border border-[var(--border)] border-dashed rounded-2xl text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--text)] hover:bg-[var(--surface)] transition flex flex-col items-center justify-center gap-2"
         >

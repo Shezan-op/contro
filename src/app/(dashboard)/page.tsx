@@ -1,29 +1,28 @@
 "use client";
 
+import { useMemo } from "react";
 import { useAppStore } from "@/store/useAppStore";
-import { Plus, Calendar as CalendarIcon, Pin, CheckSquare, LibraryBig, Check } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, Pin, CheckSquare, LibraryBig, Check, PenLine } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { eachDayOfInterval, startOfWeek, endOfWeek, isSameDay, isToday, format } from "date-fns";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { TaskService } from "@/services/TaskService";
 
 export default function DashboardPage() {
   const { projects, tasks, drafts, isLoading, workspaceId, refreshData } = useAppStore();
-  const router = useRouter();
   
   const topTasks = tasks.filter(t => !t.isCompleted).slice(0, 5);
   const pinnedProjects = projects.filter(p => p.isStarred).slice(0, 3);
   
   // All content items with a scheduled date
   const scheduledItems = [...projects, ...drafts, ...tasks].filter(item => item.scheduledFor);
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  };
+  const weekDays = useMemo(() => {
+    const today = new Date();
+    return eachDayOfInterval({
+      start: startOfWeek(today, { weekStartsOn: 1 }),
+      end: endOfWeek(today, { weekStartsOn: 1 })
+    });
+  }, []);
 
   const handleTaskToggle = async (taskId: string, currentStatus: boolean) => {
     if (!workspaceId) return;
@@ -49,7 +48,7 @@ export default function DashboardPage() {
     <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8 md:space-y-12 animate-fade-in">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">{getGreeting()}.</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Welcome back.</h1>
           <p className="text-[var(--muted)] mt-1">Here is what&apos;s happening in your workspace.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -67,7 +66,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Link href="/writer?new=true" className="flex flex-col items-center justify-center p-6 bg-[var(--surface)] border border-[var(--border)] rounded-2xl hover:border-[var(--text)] hover:shadow-sm transition group active:scale-[0.98]">
           <div className="w-12 h-12 rounded-full bg-[var(--background)] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-            <PenLineIcon size={24} className="text-[var(--text)]" />
+            <PenLine size={24} className="text-[var(--text)]" />
           </div>
           <span className="font-medium">Write</span>
         </Link>
@@ -107,16 +106,16 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="grid grid-cols-7 gap-2">
-              {eachDayOfInterval({ start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: endOfWeek(new Date(), { weekStartsOn: 1 }) }).map((date, i) => {
+              {weekDays.map((date) => {
                 const dayItems = scheduledItems.filter(item => item.scheduledFor && isSameDay(new Date(item.scheduledFor), date));
                 const isTodayDate = isToday(date);
                 return (
-                  <Link href="/calendar" key={i} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition group hover:border-[var(--text)] hover:shadow-sm ${isTodayDate ? 'border-[var(--text)] bg-[var(--background)] shadow-sm' : 'border-[var(--border)] bg-[var(--background)]'}`}>
+                  <Link href="/calendar" key={date.toISOString()} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition group hover:border-[var(--text)] hover:shadow-sm ${isTodayDate ? 'border-[var(--text)] bg-[var(--background)] shadow-sm' : 'border-[var(--border)] bg-[var(--background)]'}`}>
                     <span className={`text-xs uppercase tracking-wider ${isTodayDate ? 'text-[var(--text)] font-semibold' : 'text-[var(--muted)]'}`}>{format(date, 'EEE')}</span>
                     <span className={`text-lg font-medium mt-1 ${isTodayDate ? 'text-[var(--text)]' : ''}`}>{format(date, 'd')}</span>
                     <div className="flex gap-1 mt-3 h-1.5 min-h-[6px]">
-                      {dayItems.slice(0, 3).map((item, idx) => (
-                        <div key={idx} className={`w-1.5 h-1.5 rounded-full ${item.status === 'published' ? 'bg-green-500' : item.status === 'scheduled' ? 'bg-blue-500' : 'bg-[var(--muted)]'}`} />
+                      {dayItems.slice(0, 3).map((item) => (
+                        <div key={item.id} className={`w-1.5 h-1.5 rounded-full ${item.status === 'published' ? 'bg-green-500' : item.status === 'scheduled' ? 'bg-blue-500' : 'bg-[var(--muted)]'}`} />
                       ))}
                     </div>
                   </Link>
@@ -152,9 +151,10 @@ export default function DashboardPage() {
               <div className="space-y-2">
                 {topTasks.map(task => (
                   <div key={task.id} className="flex items-start gap-3 p-3 bg-[var(--background)] border border-[var(--border)] rounded-xl group transition-colors hover:border-[var(--text)]/30">
-                    <button 
+                    <button type="button" 
                       onClick={() => handleTaskToggle(task.id, !!task.isCompleted)}
                       className="w-5 h-5 rounded border border-[var(--border)] mt-0.5 flex-shrink-0 flex items-center justify-center text-transparent hover:border-[var(--text)] transition-colors"
+                      aria-label={`Mark ${task.title} complete`}
                     >
                       <Check size={14} className="opacity-0 hover:opacity-50" />
                     </button>
@@ -198,25 +198,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-// Need this icon
-function PenLineIcon(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 Z" />
-    </svg>
-  )
-}
-

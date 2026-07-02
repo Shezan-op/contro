@@ -89,7 +89,7 @@ export default function ProjectDetailsPage() {
     return (
       <div className="max-w-4xl mx-auto p-8 text-center py-24">
         <h1 className="text-2xl font-semibold mb-2">Project not found</h1>
-        <p className="text-[var(--muted)] mb-6">This project may have been deleted or you don't have access.</p>
+        <p className="text-[var(--muted)] mb-6">This project may have been deleted or you don&apos;t have access.</p>
         <Link href="/projects" className="text-blue-500 hover:underline">Return to Projects</Link>
       </div>
     );
@@ -99,14 +99,16 @@ export default function ProjectDetailsPage() {
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8 animate-fade-in">
       <header className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div className="flex items-start gap-3 w-full">
-          <button 
+          <button type="button" 
             onClick={() => router.push('/projects')}
             className="p-2 -ml-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] rounded-md transition mt-1"
+            aria-label="Back to projects"
           >
             <ArrowLeft size={20} />
           </button>
           <div className="flex flex-col flex-1 gap-2">
             <input
+              aria-label="Project title"
               type="text"
               value={editingTitle}
               onChange={(e) => setEditingTitle(e.target.value)}
@@ -116,6 +118,7 @@ export default function ProjectDetailsPage() {
               placeholder="Project Name"
             />
             <input
+              aria-label="Project description"
               type="text"
               value={editingDesc}
               onChange={(e) => setEditingDesc(e.target.value)}
@@ -127,10 +130,11 @@ export default function ProjectDetailsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button 
+          <button type="button" 
             onClick={() => setIsDeleting(true)}
             className="p-2 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition"
             title="Delete Project"
+            aria-label="Delete project"
           >
             <Trash2 size={20} />
           </button>
@@ -140,7 +144,7 @@ export default function ProjectDetailsPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium">Content</h2>
-          <button 
+          <button type="button" 
             onClick={handleCreateContent}
             className="flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] px-3 py-1.5 text-sm rounded-lg hover:bg-[var(--background)] transition shadow-sm"
           >
@@ -155,7 +159,7 @@ export default function ProjectDetailsPage() {
               <FileText size={24} />
             </div>
             <p className="text-[var(--muted)] mb-4">No content in this project yet.</p>
-            <button 
+            <button type="button" 
               onClick={handleCreateContent}
               className="flex items-center gap-2 bg-[var(--background)] border border-[var(--border)] text-[var(--text)] px-4 py-2 rounded-lg font-medium hover:bg-[var(--surface)] transition active:scale-95 shadow-sm"
             >

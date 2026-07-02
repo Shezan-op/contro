@@ -1,7 +1,7 @@
 "use client";
 
 import { useAppStore } from "@/store/useAppStore";
-import { useTheme } from "@/components/providers/ThemeProvider";
+import { Theme, useTheme } from "@/components/providers/ThemeProvider";
 import { db } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
 import { useState, useEffect } from "react";
@@ -39,7 +39,7 @@ export default function SettingsPage() {
       setTimeout(() => {
         window.location.reload();
       }, 1000);
-    } catch (e) {
+    } catch {
       toast("Failed to clear local data.", "error");
     }
   };
@@ -62,7 +62,7 @@ export default function SettingsPage() {
               </div>
               <select 
                 value={theme}
-                onChange={(e) => setTheme(e.target.value as any)}
+                onChange={(e) => setTheme(e.target.value as Theme)}
                 className="p-2 bg-[var(--background)] border border-[var(--border)] rounded-md text-sm text-[var(--text)] focus:outline-none"
               >
                 <option value="system">System</option>
@@ -76,9 +76,10 @@ export default function SettingsPage() {
                 <h3 className="font-medium">Auto-Save</h3>
                 <p className="text-sm text-[var(--muted)]">Automatically save content while writing.</p>
               </div>
-              <button 
+              <button type="button" 
                 onClick={() => setAutoSave(!autoSave)}
                 className={`w-12 h-6 rounded-full transition-colors relative ${autoSave ? 'bg-[var(--text)]' : 'bg-[var(--border)]'}`}
+                aria-label="Toggle auto-save"
               >
                 <div className={`w-4 h-4 rounded-full bg-[var(--background)] absolute top-1 transition-transform ${autoSave ? 'left-7' : 'left-1'}`} />
               </button>
@@ -116,9 +117,10 @@ export default function SettingsPage() {
                 <h3 className="font-medium">Force Offline Mode</h3>
                 <p className="text-sm text-[var(--muted)]">Work completely offline. Changes will sync when disabled.</p>
               </div>
-              <button 
+              <button type="button" 
                 onClick={() => setOfflineStatus(!isOffline)}
                 className={`w-12 h-6 rounded-full transition-colors relative ${isOffline ? 'bg-[var(--text)]' : 'bg-[var(--border)]'}`}
+                aria-label="Toggle offline mode"
               >
                 <div className={`w-4 h-4 rounded-full bg-[var(--background)] absolute top-1 transition-transform ${isOffline ? 'left-7' : 'left-1'}`} />
               </button>
@@ -141,7 +143,7 @@ export default function SettingsPage() {
                 <h3 className="font-medium text-red-500">Clear Local Data</h3>
                 <p className="text-sm text-red-500/80">Permanently delete all locally stored data. This cannot be undone.</p>
               </div>
-              <button 
+              <button type="button" 
                 onClick={() => setIsConfirmingClear(true)}
                 className="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition whitespace-nowrap shadow-sm active:scale-95"
               >

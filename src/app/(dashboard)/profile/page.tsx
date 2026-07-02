@@ -1,47 +1,31 @@
 "use client";
 
 import { useAppStore } from "@/store/useAppStore";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, User as UserIcon, BarChart3, Edit2, Check, X } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { logoutAction } from "@/app/login/actions";
+import { AUTH_PROFILE_KEY, clearLocalSession, readAuthProfile } from "@/lib/localAuth";
 
 export default function ProfilePage() {
   const { drafts, projects, tasks, leadMagnets } = useAppStore();
   const router = useRouter();
   const { toast } = useToast();
   
-  const [name, setName] = useState("User");
-  const [email, setEmail] = useState("");
+  const initialProfile = readAuthProfile();
+  const [name, setName] = useState(initialProfile?.name || "User");
+  const [email] = useState(initialProfile?.email || "");
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState("");
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
 
-  useEffect(() => {
-    // Load from local storage
-    const storedAuth = localStorage.getItem("contro_auth");
-    if (storedAuth) {
-      try {
-        const auth = JSON.parse(storedAuth);
-        setName(auth.name || "User");
-        setEmail(auth.email || "user@example.com");
-      } catch(e) {}
-    }
-  }, []);
-
   const handleSaveName = () => {
     if (tempName.trim()) {
       setName(tempName.trim());
-      // Save back to local storage
-      const storedAuth = localStorage.getItem("contro_auth");
-      if (storedAuth) {
-        try {
-          const auth = JSON.parse(storedAuth);
-          auth.name = tempName.trim();
-          localStorage.setItem("contro_auth", JSON.stringify(auth));
-        } catch(e) {}
+      const auth = readAuthProfile();
+      if (auth) {
+        localStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify({ ...auth, name: tempName.trim() }));
       }
       toast("Name updated successfully", "success");
     }
@@ -49,8 +33,7 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async () => {
-    localStorage.removeItem("contro_auth");
-    await logoutAction();
+    await clearLocalSession();
     toast("Logged out successfully", "success");
     router.push("/login");
   };
@@ -64,7 +47,7 @@ export default function ProfilePage() {
           <h1 className="text-3xl font-semibold tracking-tight">Profile</h1>
           <p className="text-[var(--muted)] mt-1">Manage your personal information and preferences.</p>
         </div>
-        <button 
+        <button type="button" 
           onClick={() => setIsConfirmingLogout(true)}
           className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-500 border border-red-500/20 text-sm font-medium rounded-lg hover:bg-red-500/20 transition whitespace-nowrap active:scale-95 shadow-sm"
         >
@@ -82,25 +65,25 @@ export default function ProfilePage() {
           {isEditingName ? (
             <div className="flex items-center gap-2">
               <input 
-                autoFocus
+                aria-label="Profile name"
                 type="text" 
                 value={tempName}
                 onChange={(e) => setTempName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
                 className="text-xl font-medium bg-[var(--background)] border border-[var(--border)] rounded-md px-3 py-1 outline-none focus:border-[var(--text)]"
               />
-              <button onClick={handleSaveName} className="p-1.5 bg-[var(--text)] text-[var(--background)] rounded-md hover:opacity-90">
+              <button type="button" onClick={handleSaveName} className="p-1.5 bg-[var(--text)] text-[var(--background)] rounded-md hover:opacity-90" aria-label="Save name">
                 <Check size={16} />
               </button>
-              <button onClick={() => setIsEditingName(false)} className="p-1.5 bg-[var(--background)] text-[var(--muted)] border border-[var(--border)] rounded-md hover:text-[var(--text)]">
+              <button type="button" onClick={() => setIsEditingName(false)} className="p-1.5 bg-[var(--background)] text-[var(--muted)] border border-[var(--border)] rounded-md hover:text-[var(--text)]" aria-label="Cancel name edit">
                 <X size={16} />
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 group cursor-pointer" onClick={() => { setTempName(name); setIsEditingName(true); }}>
+            <button type="button" className="flex items-center gap-2 group" onClick={() => { setTempName(name); setIsEditingName(true); }}>
               <h2 className="text-2xl font-medium">{name}</h2>
               <Edit2 size={14} className="text-[var(--muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
+            </button>
           )}
           <p className="text-[var(--muted)] mt-1">{email}</p>
         </div>
@@ -154,7 +137,7 @@ export default function ProfilePage() {
                 <div className="text-xs text-[var(--muted)]">Connect your profile or company page</div>
               </div>
             </div>
-            <button className="px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-md text-sm font-medium">Connect</button>
+            <button type="button" className="px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-md text-sm font-medium">Connect</button>
           </div>
           <div className="flex items-center justify-between bg-[var(--background)] p-4 rounded-xl border border-[var(--border)]">
             <div className="flex items-center gap-3">
@@ -166,7 +149,7 @@ export default function ProfilePage() {
                 <div className="text-xs text-[var(--muted)]">Connect your account</div>
               </div>
             </div>
-            <button className="px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-md text-sm font-medium">Connect</button>
+            <button type="button" className="px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-md text-sm font-medium">Connect</button>
           </div>
         </div>
       </div>

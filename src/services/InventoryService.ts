@@ -119,12 +119,17 @@ export class InventoryService {
     const q = query.toLowerCase();
     if (!q) return [];
     
-    const items = await db.inventoryItems.where('workspaceId').equals(workspaceId).toArray();
-    const libraries = await this.getLibraries(workspaceId);
+    const [items, libraries] = await Promise.all([
+      db.inventoryItems.where('workspaceId').equals(workspaceId).toArray(),
+      this.getLibraries(workspaceId)
+    ]);
     const libMap = Object.fromEntries(libraries.map(l => [l.id, l.name]));
 
-    return items
-      .filter(item => item.text.toLowerCase().includes(q))
-      .map(item => ({ ...item, libraryName: libMap[item.libraryId] || 'Unknown' }));
+    return items.reduce<(InventoryItem & { libraryName: string })[]>((matches, item) => {
+      if (item.text.toLowerCase().includes(q)) {
+        matches.push({ ...item, libraryName: libMap[item.libraryId] || 'Unknown' });
+      }
+      return matches;
+    }, []);
   }
 }

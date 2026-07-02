@@ -10,6 +10,26 @@ import Link from "next/link";
 import { Search as SearchIcon, FileText, FolderOpen, CheckSquare, BookOpen, Bookmark } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+function getIconForType(type: string) {
+  switch(type) {
+    case 'DRAFT': return <FileText size={16} className="text-blue-500" />;
+    case 'PROJECT': return <FolderOpen size={16} className="text-purple-500" />;
+    case 'TASK': return <CheckSquare size={16} className="text-green-500" />;
+    case 'LEAD_MAGNET': return <BookOpen size={16} className="text-orange-500" />;
+    default: return <FileText size={16} />;
+  }
+}
+
+function getLinkForType(item: UniversalContent) {
+  switch(item.type) {
+    case 'DRAFT': return `/writer`;
+    case 'PROJECT': return `/projects/${item.id}`;
+    case 'TASK': return `/tasks`;
+    case 'LEAD_MAGNET': return `/lead-magnets/${item.id}`;
+    default: return '#';
+  }
+}
+
 export default function SearchPage() {
   const { workspaceId } = useAppStore();
   const router = useRouter();
@@ -44,26 +64,6 @@ export default function SearchPage() {
     const debounce = setTimeout(performSearch, 300);
     return () => clearTimeout(debounce);
   }, [query, workspaceId]);
-
-  const getIconForType = (type: string) => {
-    switch(type) {
-      case 'DRAFT': return <FileText size={16} className="text-blue-500" />;
-      case 'PROJECT': return <FolderOpen size={16} className="text-purple-500" />;
-      case 'TASK': return <CheckSquare size={16} className="text-green-500" />;
-      case 'LEAD_MAGNET': return <BookOpen size={16} className="text-orange-500" />;
-      default: return <FileText size={16} />;
-    }
-  };
-
-  const getLinkForType = (item: UniversalContent) => {
-    switch(item.type) {
-      case 'DRAFT': return `/writer`; // In a real app we might pass the id to writer
-      case 'PROJECT': return `/projects/${item.id}`;
-      case 'TASK': return `/tasks`;
-      case 'LEAD_MAGNET': return `/lead-magnets/${item.id}`;
-      default: return '#';
-    }
-  };
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8 animate-fade-in">
@@ -101,7 +101,7 @@ export default function SearchPage() {
 
         {!isSearching && query.trim() && contentResults.length === 0 && inventoryResults.length === 0 && (
           <div className="text-center py-12 text-[var(--muted)]">
-            No results found for "{query}".
+            No results found for &quot;{query}&quot;.
           </div>
         )}
 
@@ -142,9 +142,10 @@ export default function SearchPage() {
             <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--muted)]">Inventory Items ({inventoryResults.length})</h3>
             <div className="flex flex-col gap-2">
               {inventoryResults.map(item => (
-                <div 
+                <button
+                  type="button"
                   key={item.id} 
-                  className="flex items-start gap-4 p-4 bg-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--text)] transition group cursor-pointer active:scale-[0.99]"
+                  className="flex w-full text-left items-start gap-4 p-4 bg-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--text)] transition group cursor-pointer active:scale-[0.99]"
                   onClick={() => router.push(`/inventory/${item.libraryId}`)}
                 >
                   <div className="mt-0.5 p-2 bg-[var(--background)] rounded-lg border border-[var(--border)]">
@@ -158,7 +159,7 @@ export default function SearchPage() {
                     </div>
                     <p className="text-sm text-[var(--text)] line-clamp-3 leading-relaxed">{item.text}</p>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>

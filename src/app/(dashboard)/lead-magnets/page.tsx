@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
-import { Plus, BookOpen, Search, Trash2, Copy, FileText, ArrowRight } from "lucide-react";
+import { Plus, BookOpen, Trash2, Copy, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { LeadMagnetService } from "@/services/LeadMagnetService";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { UniversalContent } from "@/lib/db";
 
 export default function LeadMagnetsPage() {
   const { leadMagnets, workspaceId, refreshData } = useAppStore();
@@ -69,7 +68,7 @@ export default function LeadMagnetsPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Lead Magnets</h1>
           <p className="text-[var(--muted)] mt-1">Manage and track your free resources and lead capture tools.</p>
         </div>
-        <button 
+        <button type="button" 
           onClick={() => setIsCreating(true)}
           className="flex items-center justify-center gap-2 bg-[var(--text)] text-[var(--background)] px-4 py-2 rounded-lg font-medium hover:opacity-90 transition active:scale-95 shadow-sm"
         >
@@ -85,7 +84,7 @@ export default function LeadMagnetsPage() {
           </div>
           <div className="flex-1 flex flex-col gap-2 w-full">
             <input
-              autoFocus
+              aria-label="Lead magnet title"
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -93,6 +92,7 @@ export default function LeadMagnetsPage() {
               className="bg-transparent border-none outline-none font-medium placeholder:text-[var(--muted)] w-full"
             />
             <input
+              aria-label="Lead magnet description"
               type="text"
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
@@ -138,7 +138,7 @@ export default function LeadMagnetsPage() {
           <p className="text-[var(--muted)] max-w-md mx-auto mb-6">
             Create lead magnets to capture emails and grow your audience. You can host PDFs, Notion templates, or other resources.
           </p>
-          <button 
+          <button type="button" 
             onClick={() => setIsCreating(true)}
             className="flex items-center gap-2 bg-[var(--background)] border border-[var(--border)] text-[var(--text)] px-4 py-2 rounded-lg font-medium hover:bg-[var(--surface)] transition active:scale-95 shadow-sm"
           >
@@ -173,10 +173,10 @@ export default function LeadMagnetsPage() {
               </div>
 
               <div className="mt-4 pt-4 border-t border-[var(--border)] flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={(e) => handleDuplicate(e, lm.id)} className="p-1.5 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Duplicate">
+                <button type="button" onClick={(e) => handleDuplicate(e, lm.id)} className="p-1.5 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Duplicate">
                   <Copy size={16} />
                 </button>
-                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeletingId(lm.id); }} className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition" title="Delete">
+                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeletingId(lm.id); }} className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition" title="Delete">
                   <Trash2 size={16} />
                 </button>
               </div>

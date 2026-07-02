@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { signup } from '../login/actions';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
+import { hashPassword, saveAuthProfile, setLocalSession } from '@/lib/localAuth';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -17,12 +17,9 @@ export default function SignupPage() {
     e.preventDefault();
     setError('');
 
-    // Save to localStorage
-    localStorage.setItem('contro_auth', JSON.stringify({ email, password, name: email.split('@')[0] }));
-    
-    // Set server cookie via server action
-    const formData = new FormData();
-    await signup(formData);
+    const passwordHash = await hashPassword(password);
+    saveAuthProfile({ email, passwordHash, name: email.split('@')[0] });
+    await setLocalSession();
     
     // Redirect to dashboard
     router.push('/');

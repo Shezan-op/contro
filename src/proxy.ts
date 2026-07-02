@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
   // Use a local cookie to determine if the user is authenticated in this offline-first setup
-  const isAuthenticated = request.cookies.has('contro_auth');
+  const isAuthenticated = request.cookies.has('contro_session');
 
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup')
   const isSplashPage = request.nextUrl.pathname === '/splash'

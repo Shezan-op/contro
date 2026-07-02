@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useEffectEvent } from 'react';
+import { AnimatePresence, LazyMotion, domAnimation, m } from 'framer-motion';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -22,29 +22,33 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const onCancelEvent = useEffectEvent(onCancel);
+  const onConfirmEvent = useEffectEvent(onConfirm);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
-      if (e.key === 'Escape') onCancel();
-      if (e.key === 'Enter') onConfirm();
+      if (e.key === 'Escape') onCancelEvent();
+      if (e.key === 'Enter') onConfirmEvent();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onCancel, onConfirm]);
+  }, [isOpen]);
 
   return (
+    <LazyMotion features={domAnimation}>
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={onCancel}
           />
-          <motion.div
+          <m.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -55,13 +59,13 @@ export function ConfirmDialog({
               <p className="text-[var(--muted)] text-sm">{message}</p>
             </div>
             <div className="px-6 py-4 bg-[var(--background)] border-t border-[var(--border)] flex justify-end gap-3">
-              <button
+              <button type="button"
                 onClick={onCancel}
                 className="px-4 py-2 text-sm font-medium text-[var(--text)] bg-[var(--surface)] border border-[var(--border)] rounded-lg hover:bg-[var(--background)] transition"
               >
                 {cancelLabel}
               </button>
-              <button
+              <button type="button"
                 onClick={onConfirm}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
                   isDestructive
@@ -72,9 +76,10 @@ export function ConfirmDialog({
                 {confirmLabel}
               </button>
             </div>
-          </motion.div>
+          </m.div>
         </div>
       )}
     </AnimatePresence>
+    </LazyMotion>
   );
 }

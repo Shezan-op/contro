@@ -44,7 +44,7 @@ export default function LeadMagnetDetailsPage() {
         class: 'prose prose-stone dark:prose-invert max-w-none focus:outline-none min-h-[400px]',
       },
     },
-    onUpdate: ({ editor }) => {
+    onUpdate: () => {
       // We could auto-save, but we'll add a save button for manual saves
     }
   });
@@ -64,7 +64,7 @@ export default function LeadMagnetDetailsPage() {
           // In a real app we parse the JSON AST, but for simplicity here we assume HTML or JSON
           // The Writer uses JSON AST, so we might need to handle it.
           if (lm.body && typeof lm.body === 'object' && Object.keys(lm.body).length > 0) {
-            editor.commands.setContent(lm.body as any);
+            editor.commands.setContent(lm.body as Parameters<typeof editor.commands.setContent>[0]);
           }
         }
       }
@@ -118,7 +118,7 @@ export default function LeadMagnetDetailsPage() {
     return (
       <div className="max-w-4xl mx-auto p-8 text-center py-24">
         <h1 className="text-2xl font-semibold mb-2">Lead Magnet not found</h1>
-        <p className="text-[var(--muted)] mb-6">This lead magnet may have been deleted or you don't have access.</p>
+        <p className="text-[var(--muted)] mb-6">This lead magnet may have been deleted or you don&apos;t have access.</p>
         <Link href="/lead-magnets" className="text-blue-500 hover:underline">Return to Lead Magnets</Link>
       </div>
     );
@@ -128,14 +128,16 @@ export default function LeadMagnetDetailsPage() {
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8 animate-fade-in">
       <header className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div className="flex items-start gap-3 w-full">
-          <button 
+          <button type="button" 
             onClick={() => router.push('/lead-magnets')}
             className="p-2 -ml-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] rounded-md transition mt-1"
+            aria-label="Back to lead magnets"
           >
             <ArrowLeft size={20} />
           </button>
           <div className="flex flex-col flex-1 gap-2">
             <input
+              aria-label="Lead magnet title"
               type="text"
               value={editingTitle}
               onChange={(e) => setEditingTitle(e.target.value)}
@@ -145,6 +147,7 @@ export default function LeadMagnetDetailsPage() {
               placeholder="Lead Magnet Title"
             />
             <input
+              aria-label="Lead magnet description"
               type="text"
               value={editingDesc}
               onChange={(e) => setEditingDesc(e.target.value)}
@@ -156,7 +159,7 @@ export default function LeadMagnetDetailsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button 
+          <button type="button" 
             onClick={handleSaveContent}
             disabled={isSaving}
             className="flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] px-4 py-2 rounded-lg font-medium hover:bg-[var(--background)] transition active:scale-95 shadow-sm"
@@ -164,10 +167,11 @@ export default function LeadMagnetDetailsPage() {
             <Save size={16} />
             {isSaving ? 'Saving...' : 'Save'}
           </button>
-          <button 
+          <button type="button" 
             onClick={() => setIsDeleting(true)}
             className="p-2 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition border border-[var(--border)]"
             title="Delete"
+            aria-label="Delete lead magnet"
           >
             <Trash2 size={20} />
           </button>

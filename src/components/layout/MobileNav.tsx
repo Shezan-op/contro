@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, LazyMotion, domAnimation, m } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
@@ -37,17 +37,18 @@ export function MobileNav() {
       {/* Mobile Header bar */}
       <div className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-[var(--background)]">
         <h1 className="text-xl font-semibold tracking-tight text-[var(--text)]">Contro</h1>
-        <button onClick={() => setIsOpen(true)} className="p-2 -mr-2 text-[var(--text)] rounded-md hover:bg-[var(--surface)] transition active:scale-95">
+        <button type="button" onClick={() => setIsOpen(true)} className="p-2 -mr-2 text-[var(--text)] rounded-md hover:bg-[var(--surface)] transition active:scale-95">
           <Menu size={24} />
         </button>
       </div>
 
       {/* Slide-out Drawer */}
+      <LazyMotion features={domAnimation}>
       <AnimatePresence>
         {isOpen && (
           <>
             {/* Backdrop */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -56,7 +57,7 @@ export function MobileNav() {
             />
             
             {/* Drawer */}
-            <motion.div
+            <m.div
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
@@ -64,17 +65,18 @@ export function MobileNav() {
               className="fixed inset-y-0 left-0 z-50 w-64 bg-[var(--background)] shadow-xl flex flex-col"
             >
               <div className="absolute right-4 top-4">
-                <button onClick={() => setIsOpen(false)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] rounded-md transition active:scale-95">
+                <button type="button" onClick={() => setIsOpen(false)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] rounded-md transition active:scale-95">
                   <X size={20} />
                 </button>
               </div>
               <div className="flex-1 w-full flex flex-col pt-12 overflow-y-auto">
                 <MobileSidebarContent onNavigate={() => setIsOpen(false)} />
               </div>
-            </motion.div>
+            </m.div>
           </>
         )}
       </AnimatePresence>
+      </LazyMotion>
     </div>
   );
 }
@@ -156,4 +158,3 @@ function MobileSidebarContent({ onNavigate }: { onNavigate: () => void }) {
     </>
   );
 }
-

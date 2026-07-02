@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
-import { Plus, FolderOpen, Search, LibraryBig, ArrowRight } from "lucide-react";
+import { Plus, FolderOpen, LibraryBig, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { InventoryService } from "@/services/InventoryService";
@@ -46,7 +46,7 @@ export default function InventoryPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Inventory</h1>
           <p className="text-[var(--muted)] mt-1">Your permanent library of reusable content assets.</p>
         </div>
-        <button 
+        <button type="button" 
           onClick={() => setIsCreating(true)}
           className="flex items-center justify-center gap-2 bg-[var(--text)] text-[var(--background)] px-4 py-2 rounded-lg font-medium hover:opacity-90 transition active:scale-95 shadow-sm"
         >
@@ -61,7 +61,7 @@ export default function InventoryPage() {
             <LibraryBig size={20} className="text-[var(--text)]" />
           </div>
           <input
-            autoFocus
+            aria-label="Library name"
             type="text"
             value={newLibraryName}
             onChange={(e) => setNewLibraryName(e.target.value)}
@@ -106,7 +106,7 @@ export default function InventoryPage() {
           <p className="text-[var(--muted)] max-w-md mx-auto mb-6">
             Create a library to store and organize your reusable content assets.
           </p>
-          <button 
+          <button type="button" 
             onClick={() => setIsCreating(true)}
             className="flex items-center gap-2 bg-[var(--background)] border border-[var(--border)] text-[var(--text)] px-4 py-2 rounded-lg font-medium hover:bg-[var(--surface)] transition active:scale-95 shadow-sm"
           >

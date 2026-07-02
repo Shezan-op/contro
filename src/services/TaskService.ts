@@ -52,17 +52,13 @@ export class TaskService {
 
   static async bulkComplete(ids: string[]): Promise<void> {
     await db.transaction('rw', db.content, async () => {
-      for (const id of ids) {
-        await db.content.update(id, { isCompleted: true, syncStatus: 'pending' });
-      }
+      await Promise.all(ids.map((id) => db.content.update(id, { isCompleted: true, syncStatus: 'pending' })));
     });
   }
 
   static async bulkDelete(ids: string[]): Promise<void> {
     await db.transaction('rw', db.content, async () => {
-      for (const id of ids) {
-        await db.content.update(id, { isTrashed: true, syncStatus: 'pending' });
-      }
+      await Promise.all(ids.map((id) => db.content.update(id, { isTrashed: true, syncStatus: 'pending' })));
     });
   }
 }

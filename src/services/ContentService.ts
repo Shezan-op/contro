@@ -1,20 +1,8 @@
 import { db, UniversalContent, ContentType } from "@/lib/db";
-import { WorkspaceService } from "./WorkspaceService";
 import { v4 as uuidv4 } from "uuid";
+import { useAppStore } from "@/store/useAppStore";
 
 export class ContentService {
-  /**
-   * Retrieves all content of a specific type.
-   */
-  static async getByType(type: ContentType): Promise<UniversalContent[]> {
-    const workspace = await WorkspaceService.getDefaultWorkspace();
-    return await db.content
-      .where("workspaceId")
-      .equals(workspace.id)
-      .and((item) => item.type === type && !item.isTrashed)
-      .toArray();
-  }
-
   static async create(workspaceId: string, type: ContentType, partial: Partial<UniversalContent> = {}) {
     const content: UniversalContent = {
       id: uuidv4(),
@@ -31,10 +19,12 @@ export class ContentService {
       isTrashed: partial.isTrashed || false,
       syncStatus: 'pending',
       projectId: partial.projectId,
+      createdAt: new Date().toISOString(),
       ...partial
     };
 
     await db.content.add(content);
+    useAppStore.getState().refreshData();
     return content;
   }
 
@@ -43,6 +33,7 @@ export class ContentService {
       ...updates,
       syncStatus: 'pending' // Mark for sync when changed
     });
+    useAppStore.getState().refreshData();
   }
 
   static async getById(id: string) {
@@ -81,18 +72,22 @@ export class ContentService {
       status: 'draft',
       scheduledFor: null,
       syncStatus: 'pending',
+      createdAt: new Date().toISOString(),
     };
     
     await db.content.add(duplicated);
+    useAppStore.getState().refreshData();
     return duplicated;
   }
 
   static async archive(id: string) {
     await db.content.update(id, { isArchived: true, syncStatus: 'pending' });
+    useAppStore.getState().refreshData();
   }
 
   static async restore(id: string) {
     await db.content.update(id, { isArchived: false, isTrashed: false, syncStatus: 'pending' });
+    useAppStore.getState().refreshData();
   }
 
   static async getByType(workspaceId: string, type: ContentType) {
@@ -101,7 +96,7 @@ export class ContentService {
       .equals(workspaceId)
       .filter(c => c.type === type && !c.isTrashed && !c.isArchived)
       .reverse()
-      .sortBy('id'); // Will be replaced with createdAt if we add it, or use manual sort
+      .sortBy('createdAt'); // Changed from 'id' to fix random sorting
   }
 
   static async getDrafts(workspaceId: string) {
@@ -110,9 +105,11 @@ export class ContentService {
 
   static async moveToTrash(id: string) {
     await db.content.update(id, { isTrashed: true, syncStatus: 'pending' });
+    useAppStore.getState().refreshData();
   }
 
   static async deletePermanently(id: string) {
     await db.content.delete(id);
+    useAppStore.getState().refreshData();
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
-import { MoreHorizontal, Cloud, CloudOff, Info, Calendar, FolderOpen, ChevronLeft, ChevronRight, X, ArrowLeft, Copy, Trash2, CopyPlus, RotateCcw, Check } from "lucide-react";
+import { useEffect, useEffectEvent, useState, useCallback, Suspense, type Dispatch, type SetStateAction } from "react";
+import { Cloud, CloudOff, Info, Calendar, FolderOpen, ChevronLeft, ChevronRight, X, ArrowLeft, Copy, Trash2, CopyPlus, RotateCcw, Check } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { Editor } from "@/components/features/Editor";
 import { UniversalContent, ContentPlatform, ContentStatus } from "@/lib/db";
@@ -29,6 +29,9 @@ const DEFAULT_AST = {
   ]
 };
 
+import { WriterMetaPanel } from "@/components/features/writer/WriterMetaPanel";
+import { WriterHeader } from "@/components/features/writer/WriterHeader";
+
 function WriterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,8 +48,6 @@ function WriterContent() {
     scheduledFor: null,
     projectId: undefined
   });
-  const [isLoadingDraft, setIsLoadingDraft] = useState(false);
-  
   const [showMeta, setShowMeta] = useState(false);
   const [saveState, setSaveState] = useState<"Unsaved" | "Saving" | "Saved" | "Sync Pending">("Unsaved");
   
@@ -60,7 +61,6 @@ function WriterContent() {
   useEffect(() => {
     const draftId = searchParams.get('id');
     if (draftId) {
-      setIsLoadingDraft(true);
       ContentService.getById(draftId).then((existing) => {
         if (existing) {
           setDocument(existing);
@@ -68,8 +68,7 @@ function WriterContent() {
             setSaveTo('calendar');
           }
         }
-        setIsLoadingDraft(false);
-      }).catch(() => setIsLoadingDraft(false));
+      }).catch((error: any) => console.error("Failed to load draft", error));
     }
   }, [searchParams]);
 
@@ -112,23 +111,29 @@ function WriterContent() {
       console.error(e);
       setSaveState("Unsaved");
     }
-  }, [isOffline, refreshData]);
+  }, [isOffline, refreshData, workspaceId]);
+
+  const saveDocumentEvent = useEffectEvent(saveDocument);
 
   // Debounced auto-save
   useEffect(() => {
     const timeout = setTimeout(() => {
-      saveDocument(document);
+      saveDocumentEvent(document);
     }, 1500);
     return () => clearTimeout(timeout);
-  }, [document, saveDocument]);
+  }, [document]);
 
   // Keyboard shortcuts
+  const handleShortcutSave = useEffectEvent(async () => {
+    await saveDocument(document, true);
+    toast('Draft saved', 'success');
+  });
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        saveDocument(document, true);
-        toast('Draft saved', 'success');
+        void handleShortcutSave();
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'Backspace') {
         e.preventDefault();
@@ -137,7 +142,7 @@ function WriterContent() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [document, saveDocument, toast]);
+  }, []);
 
   const handleAddPillar = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && pillarInput.trim() !== '') {
@@ -200,76 +205,28 @@ function WriterContent() {
     toast('Draft published successfully', 'success');
   };
 
-  const isCalendarMode = saveTo === 'calendar';
-
   return (
     <div className="flex h-[100dvh] bg-[var(--background)] relative animate-fade-in">
       {/* Main Editor Area */}
       <div className={`flex-1 flex flex-col transition-all duration-300 ${showMeta ? 'mr-80' : ''}`}>
         
         {/* Top bar */}
-        <header className="h-14 flex items-center justify-between px-4 md:px-6 border-b border-[var(--border)] shrink-0">
-          <div className="flex items-center gap-3 md:gap-4">
-            <button 
-              onClick={() => router.back()}
-              className="p-1.5 md:p-2 -ml-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] rounded-md transition"
-              title="Go back"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <span className="text-xs md:text-sm font-medium px-2 py-1 bg-[var(--surface)] border border-[var(--border)] rounded text-[var(--muted)]">
-              {document.status === 'scheduled' ? 'Scheduled' : document.status === 'published' ? 'Published' : 'Draft'}
-            </span>
-            <div className="flex items-center gap-1.5 text-xs md:text-sm text-[var(--muted)] transition-colors">
-              {isOffline ? (
-                <><CloudOff size={14} /> <span className="hidden md:inline">Offline</span></>
-              ) : (
-                <>
-                  {saveState === 'Saving' ? <Cloud size={14} className="animate-pulse text-[var(--text)]" /> : 
-                   saveState === 'Saved' ? <Check size={14} className="text-green-500" /> : 
-                   <Cloud size={14} />} 
-                  <span className={`hidden md:inline ${saveState === 'Saving' ? 'text-[var(--text)]' : ''}`}>{saveState}</span>
-                </>
-              )}
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-1 md:gap-2">
-            <div className="hidden md:flex items-center gap-1 mr-2 pr-2 border-r border-[var(--border)]">
-              <button onClick={handleCopy} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] rounded-md transition" title="Copy Content">
-                <Copy size={18} />
-              </button>
-              <button onClick={handleDuplicate} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] rounded-md transition" title="Duplicate">
-                <CopyPlus size={18} />
-              </button>
-              <button onClick={() => setConfirmDialog({ isOpen: true, action: 'clear' })} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] rounded-md transition" title="Clear Editor">
-                <RotateCcw size={18} />
-              </button>
-              <button onClick={() => setConfirmDialog({ isOpen: true, action: 'delete' })} className="p-2 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition" title="Delete Draft (Cmd+Backspace)">
-                <Trash2 size={18} />
-              </button>
-            </div>
-            
-            <button 
-              onClick={() => setShowMeta(!showMeta)}
-              className={`p-2 rounded-md transition ${showMeta ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm border border-[var(--border)]' : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] border border-transparent'}`}
-              title="Toggle Metadata"
-            >
-              <Info size={18} />
-            </button>
-            <button 
-              onClick={() => setConfirmDialog({ isOpen: true, action: 'publish' })}
-              className="ml-1 md:ml-2 px-3 md:px-4 py-1.5 bg-[var(--text)] text-[var(--background)] text-xs md:text-sm font-medium rounded-md hover:opacity-90 transition active:scale-95 shadow-sm"
-            >
-              Publish
-            </button>
-          </div>
-        </header>
+        <WriterHeader
+          document={document}
+          isOffline={isOffline}
+          saveState={saveState}
+          showMeta={showMeta}
+          setShowMeta={setShowMeta}
+          handleCopy={handleCopy}
+          handleDuplicate={handleDuplicate}
+          setConfirmDialog={setConfirmDialog}
+        />
 
         {/* Editor Canvas */}
         <main className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-24 lg:px-48 py-8 md:py-12 custom-scrollbar">
           <div className="max-w-3xl mx-auto space-y-6 pb-32">
             <input
+              aria-label="Post title"
               type="text"
               placeholder="Post Title..."
               value={document.title}
@@ -280,6 +237,7 @@ function WriterContent() {
             <hr className="border-[var(--border)] my-6" />
             
             <Editor 
+              key={document.id}
               content={document.body || DEFAULT_AST}
               onChange={(body) => setDocument({ ...document, body })}
             />
@@ -287,8 +245,9 @@ function WriterContent() {
             <hr className="border-[var(--border)] my-6" />
 
             <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wider font-semibold text-[var(--muted)] pl-1">Call to Action</label>
+              <label className="text-xs uppercase tracking-wider font-semibold text-[var(--muted)] pl-1" htmlFor="writer-cta">Call to Action</label>
               <textarea
+                id="writer-cta"
                 placeholder="What should the reader do next?"
                 value={document.cta || ""}
                 onChange={(e) => setDocument({ ...document, cta: e.target.value })}
@@ -299,132 +258,20 @@ function WriterContent() {
         </main>
       </div>
 
-      {/* Meta Panel (Right Sidebar) */}
-      <aside 
-        className={`w-80 h-full bg-[var(--surface)] border-l border-[var(--border)] absolute right-0 top-0 overflow-y-auto shadow-2xl transition-transform duration-300 z-30 ${showMeta ? 'translate-x-0' : 'translate-x-full'}`}
-      >
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-semibold text-lg">Metadata</h3>
-            <button onClick={() => setShowMeta(false)} className="p-1 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition">
-              <X size={18} />
-            </button>
-          </div>
-          
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[var(--text)]">Save Destination</label>
-              <div className="flex bg-[var(--background)] p-1 rounded-lg border border-[var(--border)]">
-                <button 
-                  onClick={() => setSaveTo('project')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-sm font-medium rounded-md transition ${saveTo === 'project' ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm border border-[var(--border)]' : 'text-[var(--muted)] hover:text-[var(--text)]'}`}
-                >
-                  <FolderOpen size={16} /> Project
-                </button>
-                <button 
-                  onClick={() => {
-                    setSaveTo('calendar');
-                    if (!document.scheduledFor) {
-                      setDocument({ ...document, scheduledFor: new Date().toISOString() });
-                    }
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-sm font-medium rounded-md transition ${saveTo === 'calendar' ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm border border-[var(--border)]' : 'text-[var(--muted)] hover:text-[var(--text)]'}`}
-                >
-                  <Calendar size={16} /> Calendar
-                </button>
-              </div>
-            </div>
-
-            {isCalendarMode ? (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-[var(--text)]">Schedule Date</label>
-                  <div className="flex items-center justify-between bg-[var(--background)] border border-[var(--border)] rounded-lg p-1.5 shadow-sm">
-                    <button onClick={() => changeDate(-1)} className="p-1.5 hover:bg-[var(--surface)] rounded-md text-[var(--muted)] hover:text-[var(--text)] transition"><ChevronLeft size={16}/></button>
-                    <span className="text-sm font-medium">
-                      {document.scheduledFor ? new Date(document.scheduledFor).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : 'Select Date'}
-                    </span>
-                    <button onClick={() => changeDate(1)} className="p-1.5 hover:bg-[var(--surface)] rounded-md text-[var(--muted)] hover:text-[var(--text)] transition"><ChevronRight size={16}/></button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-[var(--text)]">Platform</label>
-                  <select 
-                    value={document.platform || ""}
-                    onChange={(e) => setDocument({ ...document, platform: e.target.value as ContentPlatform })}
-                    className="w-full p-2.5 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] shadow-sm outline-none focus:border-[var(--text)] transition-colors"
-                  >
-                    <option value="">Select Platform...</option>
-                    <option value="LinkedIn">LinkedIn</option>
-                    <option value="X (Twitter)">X (Twitter)</option>
-                    <option value="Instagram">Instagram</option>
-                    <option value="Newsletter">Newsletter</option>
-                  </select>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-[var(--text)]">Status</label>
-                  <select 
-                    value={document.status || "draft"}
-                    onChange={(e) => setDocument({ ...document, status: e.target.value as ContentStatus })}
-                    className="w-full p-2.5 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] shadow-sm outline-none focus:border-[var(--text)] transition-colors"
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="scheduled">Scheduled</option>
-                    <option value="published">Published</option>
-                    <option value="completed">Completed</option>
-                    <option value="failed">Failed</option>
-                  </select>
-                </div>
-              </>
-            ) : (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[var(--text)]">Assigned Project</label>
-                <select 
-                  value={document.projectId || ""}
-                  onChange={(e) => setDocument({ ...document, projectId: e.target.value })}
-                  className="w-full p-2.5 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] shadow-sm outline-none focus:border-[var(--text)] transition-colors"
-                >
-                  <option value="">No Project</option>
-                  {projects.map(p => (
-                    <option key={p.id} value={p.id}>{p.title}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <hr className="border-[var(--border)]" />
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[var(--text)] flex justify-between">
-                <span>Content Pillars</span>
-                <span className="text-xs text-[var(--muted)]">{(document.contentPillars || []).length}/4</span>
-              </label>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {(document.contentPillars || []).map((pillar, idx) => (
-                  <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[var(--background)] border border-[var(--border)] rounded-full text-xs font-medium shadow-sm">
-                    {pillar}
-                    <button onClick={() => removePillar(idx)} className="text-[var(--muted)] hover:text-red-500 p-0.5 rounded-full transition-colors">
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              {(document.contentPillars || []).length < 4 && (
-                <input 
-                  type="text" 
-                  value={pillarInput}
-                  onChange={(e) => setPillarInput(e.target.value)}
-                  onKeyDown={handleAddPillar}
-                  placeholder="Type & press enter..." 
-                  className="w-full p-2.5 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] shadow-sm outline-none focus:border-[var(--text)] transition-colors" 
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      </aside>
+      <WriterMetaPanel
+        showMeta={showMeta}
+        setShowMeta={setShowMeta}
+        document={document}
+        setDocument={setDocument}
+        saveTo={saveTo}
+        setSaveTo={setSaveTo}
+        projects={projects}
+        pillarInput={pillarInput}
+        setPillarInput={setPillarInput}
+        handleAddPillar={handleAddPillar}
+        removePillar={removePillar}
+        changeDate={changeDate}
+      />
 
       {/* Confirmation Dialogs */}
       <ConfirmDialog

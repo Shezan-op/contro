@@ -8,6 +8,8 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast } from "@/components/ui/Toast";
 import { UniversalContent } from "@/lib/db";
 
+type TaskPriority = "low" | "medium" | "high";
+
 export default function TasksPage() {
   const { tasks, workspaceId, refreshData } = useAppStore();
   const { toast } = useToast();
@@ -49,14 +51,14 @@ export default function TasksPage() {
     toast('Task deleted', 'success');
   };
 
-  const handleSetPriority = async (id: string, priority: 'low' | 'medium' | 'high') => {
+  const handleSetPriority = async (id: string, priority: TaskPriority) => {
     await TaskService.update(id, { priority });
     await refreshData();
   };
 
   // Due date input triggers an update on blur
   const handleUpdateDueDate = async (id: string, dateStr: string) => {
-    const dueDate = dateStr ? new Date(dateStr).toISOString() : null;
+    const dueDate = dateStr ? new Date(dateStr).toISOString() : undefined;
     await TaskService.update(id, { dueDate });
     await refreshData();
   };
@@ -79,19 +81,19 @@ export default function TasksPage() {
           />
         </div>
         <div className="flex items-center gap-1 p-1 bg-[var(--surface)] border border-[var(--border)] rounded-lg">
-          <button 
+          <button type="button" 
             onClick={() => setFilterMode("active")}
             className={`px-3 py-1.5 text-sm font-medium rounded-md transition ${filterMode === "active" ? "bg-[var(--background)] text-[var(--text)] shadow-sm" : "text-[var(--muted)] hover:text-[var(--text)]"}`}
           >
             Active
           </button>
-          <button 
+          <button type="button" 
             onClick={() => setFilterMode("completed")}
             className={`px-3 py-1.5 text-sm font-medium rounded-md transition ${filterMode === "completed" ? "bg-[var(--background)] text-[var(--text)] shadow-sm" : "text-[var(--muted)] hover:text-[var(--text)]"}`}
           >
             Completed
           </button>
-          <button 
+          <button type="button" 
             onClick={() => setFilterMode("all")}
             className={`px-3 py-1.5 text-sm font-medium rounded-md transition ${filterMode === "all" ? "bg-[var(--background)] text-[var(--text)] shadow-sm" : "text-[var(--muted)] hover:text-[var(--text)]"}`}
           >
@@ -104,6 +106,7 @@ export default function TasksPage() {
         <form onSubmit={handleCreateTask} className="flex items-center gap-3 p-4 bg-[var(--surface)] border border-[var(--border)] rounded-xl focus-within:border-[var(--text)] transition-colors shadow-sm">
           <div className="w-5 h-5 rounded border border-[var(--border)] flex-shrink-0" />
           <input
+            aria-label="New task title"
             type="text"
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
@@ -114,6 +117,7 @@ export default function TasksPage() {
             type="submit"
             disabled={!newTaskTitle.trim()}
             className="text-[var(--text)] opacity-50 hover:opacity-100 disabled:opacity-20 transition"
+            aria-label="Add task"
           >
             <Plus size={20} />
           </button>
@@ -134,7 +138,7 @@ export default function TasksPage() {
                 className={`group flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--text)] transition-all shadow-sm ${task.isCompleted ? 'opacity-60 bg-[var(--background)]' : ''}`}
               >
                 <div className="flex items-center gap-3 flex-1">
-                  <button 
+                  <button type="button" 
                     onClick={() => handleToggleCompletion(task)}
                     className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${task.isCompleted ? 'border-[var(--text)] bg-[var(--text)] text-[var(--background)]' : 'border-[var(--border)] group-hover:border-[var(--text)]'}`}
                   >
@@ -151,6 +155,7 @@ export default function TasksPage() {
                   <div className="flex items-center bg-[var(--background)] border border-[var(--border)] rounded-md px-2 py-1 gap-1 text-sm">
                     <CalendarIcon size={14} className="text-[var(--muted)]" />
                     <input 
+                      aria-label={`Due date for ${task.title}`}
                       type="date"
                       defaultValue={task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''}
                       onBlur={(e) => handleUpdateDueDate(task.id, e.target.value)}
@@ -161,7 +166,7 @@ export default function TasksPage() {
                   <div className="flex items-center bg-[var(--background)] border border-[var(--border)] rounded-md">
                     <select
                       value={task.priority || 'low'}
-                      onChange={(e) => handleSetPriority(task.id, e.target.value as any)}
+                      onChange={(e) => handleSetPriority(task.id, e.target.value as TaskPriority)}
                       className="bg-transparent border-none outline-none text-xs px-2 py-1.5 appearance-none cursor-pointer flex items-center gap-1"
                     >
                       <option value="low">Low</option>
@@ -171,7 +176,7 @@ export default function TasksPage() {
                     <Flag size={14} className={`mr-2 pointer-events-none ${task.priority === 'high' ? 'text-red-500' : task.priority === 'medium' ? 'text-yellow-500' : 'text-green-500'}`} />
                   </div>
                   
-                  <button 
+                  <button type="button" 
                     onClick={() => handleDelete(task.id)}
                     className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition ml-1"
                     title="Delete Task"

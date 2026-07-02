@@ -11,6 +11,24 @@ import { useRouter } from "next/navigation";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, getDay, isToday } from "date-fns";
 import { ContentService } from "@/services/ContentService";
 
+function getStatusColor(status: ContentStatus) {
+  switch (status) {
+    case 'published': return 'bg-green-500/10 text-green-500 border-green-500/20';
+    case 'scheduled': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+    case 'completed': return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
+    case 'failed': return 'bg-red-500/10 text-red-500 border-red-500/20';
+    default: return 'bg-[var(--surface)] text-[var(--muted)] border-[var(--border)]';
+  }
+}
+
+function handleDragStart(e: React.DragEvent, id: string) {
+  e.dataTransfer.setData("contentId", id);
+}
+
+function handleDragOver(e: React.DragEvent) {
+  e.preventDefault();
+}
+
 export default function CalendarPage() {
   const router = useRouter();
   const { calendarItems, refreshData } = useAppStore(); // scheduled items
@@ -48,7 +66,7 @@ export default function CalendarPage() {
   
   // Pad beginning of month
   const startDay = getDay(monthStart); // 0 = Sunday
-  const paddingDays = Array.from({ length: startDay }).map((_, i) => null);
+  const paddingDays = Array.from({ length: startDay }, () => null);
 
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
@@ -61,20 +79,6 @@ export default function CalendarPage() {
     });
   };
 
-  const getStatusColor = (status: ContentStatus) => {
-    switch (status) {
-      case 'published': return 'bg-green-500/10 text-green-500 border-green-500/20';
-      case 'scheduled': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
-      case 'completed': return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
-      case 'failed': return 'bg-red-500/10 text-red-500 border-red-500/20';
-      default: return 'bg-[var(--surface)] text-[var(--muted)] border-[var(--border)]'; // draft
-    }
-  };
-
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    e.dataTransfer.setData("contentId", id);
-  };
-
   const handleDrop = async (e: React.DragEvent, date: Date) => {
     e.preventDefault();
     const id = e.dataTransfer.getData("contentId");
@@ -85,23 +89,19 @@ export default function CalendarPage() {
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
   return (
     <div className="flex flex-col h-full bg-[var(--background)] animate-fade-in">
       {/* Toolbar */}
       <header className="flex-none p-6 border-b border-[var(--border)] flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg p-1">
-            <button onClick={prevMonth} className="p-1.5 hover:bg-[var(--background)] rounded-md text-[var(--muted)] hover:text-[var(--text)] transition">
+            <button type="button" onClick={prevMonth} className="p-1.5 hover:bg-[var(--background)] rounded-md text-[var(--muted)] hover:text-[var(--text)] transition" aria-label="Previous month">
               <ChevronLeft size={18} />
             </button>
-            <button onClick={goToToday} className="px-3 py-1.5 text-sm font-medium hover:bg-[var(--background)] rounded-md transition">
+            <button type="button" onClick={goToToday} className="px-3 py-1.5 text-sm font-medium hover:bg-[var(--background)] rounded-md transition">
               Today
             </button>
-            <button onClick={nextMonth} className="p-1.5 hover:bg-[var(--background)] rounded-md text-[var(--muted)] hover:text-[var(--text)] transition">
+            <button type="button" onClick={nextMonth} className="p-1.5 hover:bg-[var(--background)] rounded-md text-[var(--muted)] hover:text-[var(--text)] transition" aria-label="Next month">
               <ChevronRight size={18} />
             </button>
           </div>
@@ -114,6 +114,7 @@ export default function CalendarPage() {
           <div className="relative flex-1 md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" size={16} />
             <input 
+              aria-label="Search calendar"
               type="text" 
               placeholder="Search calendar..." 
               value={searchQuery}
@@ -123,7 +124,7 @@ export default function CalendarPage() {
           </div>
           
           <div className="relative group">
-            <button className="p-2 border border-[var(--border)] rounded-md bg-[var(--surface)] hover:bg-[var(--background)] text-[var(--muted)] hover:text-[var(--text)] transition flex items-center gap-2">
+            <button type="button" className="p-2 border border-[var(--border)] rounded-md bg-[var(--surface)] hover:bg-[var(--background)] text-[var(--muted)] hover:text-[var(--text)] transition flex items-center gap-2" aria-label="Open calendar filters">
               <Filter size={16} />
               <span className="hidden md:inline text-sm font-medium">Filter</span>
             </button>
@@ -147,7 +148,7 @@ export default function CalendarPage() {
             </div>
           </div>
 
-          <button 
+          <button type="button" 
             onClick={() => router.push('/writer')}
             className="flex items-center gap-2 px-4 py-2 bg-[var(--text)] text-[var(--background)] text-sm font-medium rounded-md hover:opacity-90 transition"
           >
@@ -175,13 +176,13 @@ export default function CalendarPage() {
               <div key={`pad-${idx}`} className="min-h-[120px] rounded-xl border border-dashed border-[var(--border)]/50 opacity-30" />
             ))}
             
-            {daysInMonth.map((date, i) => {
+            {daysInMonth.map((date) => {
               const isCurrentDay = isToday(date);
               const dayItems = getItemsForDay(date);
               
               return (
                 <div 
-                  key={i} 
+                  key={date.toISOString()} 
                   className={`min-h-[120px] rounded-xl border flex flex-col p-2 transition-colors ${isCurrentDay ? 'border-[var(--text)] bg-[var(--surface)]/50' : 'border-[var(--border)] hover:border-[var(--muted)]'}`}
                   onDrop={(e) => handleDrop(e, date)}
                   onDragOver={handleDragOver}
@@ -190,9 +191,10 @@ export default function CalendarPage() {
                     <span className={`text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full ${isCurrentDay ? 'bg-[var(--text)] text-[var(--background)]' : 'text-[var(--text)]'}`}>
                       {format(date, "d")}
                     </span>
-                    <button 
+                    <button type="button" 
                       onClick={() => router.push('/writer')}
                       className="opacity-0 hover:opacity-100 text-[var(--muted)] hover:text-[var(--text)] transition focus:opacity-100"
+                      aria-label={`Create post on ${format(date, "MMMM d")}`}
                     >
                       <Plus size={14} />
                     </button>
@@ -200,19 +202,20 @@ export default function CalendarPage() {
                   
                   <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1">
                     {dayItems.map(item => (
-                      <div 
+                      <button
+                        type="button"
                         key={item.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, item.id)}
                         onClick={() => setSelectedItem(item)}
-                        className={`text-xs p-2 rounded-lg border cursor-pointer hover:shadow-md transition-shadow group ${getStatusColor(item.status)}`}
+                        className={`w-full text-left text-xs p-2 rounded-lg border cursor-pointer hover:shadow-md transition-shadow group ${getStatusColor(item.status)}`}
                       >
                         <div className="font-semibold truncate mb-1 text-[var(--text)] group-hover:text-current">{item.title || 'Untitled'}</div>
                         <div className="flex items-center justify-between opacity-80">
                           <span className="truncate max-w-[70px]">{item.platform || 'General'}</span>
                           <span className="capitalize">{item.status}</span>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -246,10 +249,10 @@ export default function CalendarPage() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => router.push(`/writer?id=${selectedItem.id}`)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Edit in Writer">
+                <button type="button" onClick={() => router.push(`/writer?id=${selectedItem.id}`)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Edit in Writer">
                   <MoreHorizontal size={18} />
                 </button>
-                <button onClick={() => setSelectedItem(null)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition">
+                <button type="button" onClick={() => setSelectedItem(null)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" aria-label="Close content details">
                   <ChevronRight size={18} className="rotate-90" />
                 </button>
               </div>
@@ -267,8 +270,8 @@ export default function CalendarPage() {
                 <div>
                   <h4 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2">Content Pillars</h4>
                   <div className="flex flex-wrap gap-2">
-                    {selectedItem.contentPillars?.length ? selectedItem.contentPillars.map((p, i) => (
-                      <span key={i} className="px-2 py-1 bg-[var(--surface)] border border-[var(--border)] rounded-md text-xs font-medium">{p}</span>
+                    {selectedItem.contentPillars?.length ? selectedItem.contentPillars.map((p) => (
+                      <span key={p} className="px-2 py-1 bg-[var(--surface)] border border-[var(--border)] rounded-md text-xs font-medium">{p}</span>
                     )) : <span className="text-sm text-[var(--muted)]">None</span>}
                   </div>
                 </div>
@@ -285,10 +288,10 @@ export default function CalendarPage() {
 
             {/* Modal Footer Actions */}
             <div className="px-6 py-4 border-t border-[var(--border)] bg-[var(--surface)] flex items-center justify-end gap-3">
-              <button onClick={() => setSelectedItem(null)} className="px-4 py-2 text-sm font-medium text-[var(--muted)] hover:text-[var(--text)] transition">
+              <button type="button" onClick={() => setSelectedItem(null)} className="px-4 py-2 text-sm font-medium text-[var(--muted)] hover:text-[var(--text)] transition">
                 Close
               </button>
-              <button onClick={() => router.push(`/writer?id=${selectedItem.id}`)} className="px-4 py-2 bg-[var(--text)] text-[var(--background)] text-sm font-medium rounded-lg hover:opacity-90 transition">
+              <button type="button" onClick={() => router.push(`/writer?id=${selectedItem.id}`)} className="px-4 py-2 bg-[var(--text)] text-[var(--background)] text-sm font-medium rounded-lg hover:opacity-90 transition">
                 Open in Writer
               </button>
             </div>

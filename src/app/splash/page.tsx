@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect } from "react";
+import { LazyMotion, domAnimation, m } from "framer-motion";
 import { useRouter } from "next/navigation";
 
 export default function SplashPage() {
-  const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
   const text = "CONTRO";
@@ -13,8 +12,6 @@ export default function SplashPage() {
 
   useEffect(() => {
     sessionStorage.setItem("contro_seen_splash", "true");
-    const timer = setTimeout(() => setMounted(true), 0);
-    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -29,6 +26,7 @@ export default function SplashPage() {
   }, [router]);
 
   return (
+    <LazyMotion features={domAnimation}>
     <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--background)] text-[var(--text)] font-sans">
       
       <div className="flex flex-col items-center">
@@ -45,7 +43,7 @@ export default function SplashPage() {
               </span>
 
               {/* Animated Fill */}
-              <motion.span
+              <m.span
                 className="absolute top-0 left-0 text-[var(--text)] overflow-hidden"
                 initial={{ clipPath: "inset(0 100% 0 0)" }}
                 animate={{ clipPath: "inset(0 0% 0 0)" }}
@@ -56,7 +54,7 @@ export default function SplashPage() {
                 }}
               >
                 {char}
-              </motion.span>
+              </m.span>
             </div>
           ))}
         </div>
@@ -64,7 +62,7 @@ export default function SplashPage() {
         {/* Tagline Typewriter Effect */}
         <div className="text-[var(--muted)] text-sm md:text-base tracking-wide font-medium flex">
           {tagline.split("").map((char, index) => (
-            <motion.span
+            <m.span
               key={index}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -74,10 +72,11 @@ export default function SplashPage() {
               }}
             >
               {char === " " ? "\u00A0" : char}
-            </motion.span>
+            </m.span>
           ))}
         </div>
       </div>
     </div>
+    </LazyMotion>
   );
 }

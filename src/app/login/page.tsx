@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { login } from './actions';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
+import { hashPassword, readAuthProfile, setLocalSession } from '@/lib/localAuth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,17 +17,12 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
 
-    // Check localStorage
-    const savedUser = localStorage.getItem('contro_auth');
-    if (savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      if (parsedUser.email === email && parsedUser.password === password) {
-        // Authenticated!
-        const formData = new FormData();
-        await login(formData);
-        router.push('/');
-        return;
-      }
+    const savedUser = readAuthProfile();
+    const passwordHash = await hashPassword(password);
+    if (savedUser?.email === email && savedUser.passwordHash === passwordHash) {
+      await setLocalSession();
+      router.push('/');
+      return;
     }
     
     setError('Invalid email or password.');
