@@ -79,7 +79,7 @@
             animation: textShine 4s infinite linear;
             display: inline-block;
         }
-        @keyframes textShine { 0% { background-position: 120% 0%; } 100% { background-position: -120% 0%; } }
+        @keyframes textShine { 0% { background-position: 200% center; } 100% { background-position: -200% center; } }
 
         /* Custom Button */
         .btn-primary {
@@ -129,8 +129,9 @@
 
     <main>
         <!-- Hero Section -->
-        <section class="h-screen flex flex-col justify-center items-center text-center px-4 relative z-10">
-            <div class="space-y-6 max-w-5xl">
+        <section class="min-h-screen flex flex-col justify-center items-center text-center px-4 relative z-10 overflow-hidden">
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white opacity-[0.02] rounded-full blur-[120px] pointer-events-none"></div>
+            <div class="space-y-6 max-w-5xl relative z-10">
                 <div class="text-reveal inline-block overflow-hidden">
                     <h1 class="text-reveal-inner text-6xl md:text-8xl lg:text-9xl font-bold tracking-tighter leading-[0.9]">
                         The Content
@@ -150,7 +151,7 @@
                 </div>
 
                 <div class="mt-12 opacity-0" id="hero-cta">
-                    <a href="https://contro.vercel.app/" class="btn-primary text-lg" target="_blank" rel="noopener noreferrer">
+                    <a href="https://contro-omega.vercel.app/" class="btn-primary text-lg" target="_blank" rel="noopener noreferrer">
                         Enter the Workspace
                         <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
                     </a>
@@ -169,7 +170,7 @@
         <section id="features" class="py-32 relative bg-bg">
             <div class="max-w-7xl mx-auto px-4 md:px-12 flex flex-col md:flex-row gap-16">
                 <!-- Left: Pinned Text -->
-                <div class="w-full md:w-1/2" id="pinned-content">
+                <div class="w-full md:w-1/2 md:sticky top-40 h-fit" id="pinned-content">
                     <h2 class="text-4xl md:text-6xl font-bold tracking-tight mb-8">Stop rewriting the same ideas.</h2>
                     <p class="text-xl text-muted">Contro removes the friction between having an idea and retrieving it when it matters most.</p>
                 </div>
@@ -369,20 +370,6 @@
                 start: "top bottom",
                 end: "bottom top",
                 scrub: true
-            }
-        });
-
-        // Pinned Features Section
-        ScrollTrigger.matchMedia({
-            // Desktop only pinning
-            "(min-width: 768px)": function() {
-                ScrollTrigger.create({
-                    trigger: "#features",
-                    start: "top top",
-                    end: "bottom bottom",
-                    pin: "#pinned-content",
-                    pinSpacing: false
-                });
             }
         });
 
