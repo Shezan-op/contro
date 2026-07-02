@@ -2,19 +2,31 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 export default function SplashPage() {
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
+
+  const text = "CONTRO";
+  const tagline = "Where Your Work Lives";
 
   useEffect(() => {
+    sessionStorage.setItem("contro_seen_splash", "true");
     const timer = setTimeout(() => setMounted(true), 0);
     return () => clearTimeout(timer);
   }, []);
 
-  if (!mounted) return null;
-
-  const text = "CONTRO";
-  const tagline = "Where Your Work Lives";
+  useEffect(() => {
+    // Faster animation time calculation:
+    // Text wipe: text.length * 0.08s
+    // Tagline fade: tagline.length * 0.02s
+    // Redirect after 1000ms.
+    const redirectTimer = setTimeout(() => {
+      router.replace("/login");
+    }, 1000);
+    return () => clearTimeout(redirectTimer);
+  }, [router]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--background)] text-[var(--text)] font-sans">
@@ -32,15 +44,15 @@ export default function SplashPage() {
                 {char}
               </span>
 
-              {/* Animated Fill (Left to Right wipe per letter, delayed by index) */}
+              {/* Animated Fill */}
               <motion.span
                 className="absolute top-0 left-0 text-[var(--text)] overflow-hidden"
                 initial={{ clipPath: "inset(0 100% 0 0)" }}
                 animate={{ clipPath: "inset(0 0% 0 0)" }}
                 transition={{
-                  duration: 0.4,
+                  duration: 0.15,
                   ease: "linear",
-                  delay: index * 0.4,
+                  delay: index * 0.08,
                 }}
               >
                 {char}
@@ -57,11 +69,11 @@ export default function SplashPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{
-                duration: 0.05,
-                delay: (text.length * 0.4) + (index * 0.05),
+                duration: 0.02,
+                delay: (text.length * 0.08) + (index * 0.02),
               }}
             >
-              {char}
+              {char === " " ? "\u00A0" : char}
             </motion.span>
           ))}
         </div>

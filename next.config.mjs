@@ -10,6 +10,7 @@ const withPWA = withPWAInit({
 
 const nextConfig = {
   reactStrictMode: true,
+  turbopack: {},
   // Ensure webpack handles native modules correctly if needed
   webpack: (config) => {
     config.externals = [...config.externals, { canvas: 'canvas' }]; // often needed for PDF export later

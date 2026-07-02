@@ -27,30 +27,59 @@ export interface Notification {
   createdAt: string;
 }
 
-// 3. Universal Content Model
-export type ContentType = 'PROJECT' | 'DRAFT' | 'LEAD_MAGNET' | 'INVENTORY_HOOK' | 'INVENTORY_CTA' | 'INVENTORY_IDEA' | 'INVENTORY_OFFER' | 'INVENTORY_SCRIPT' | 'INVENTORY_PROPOSAL' | 'TASK' | 'ASSET';
+// 3. Inventory Models (New Structure)
+export interface InventoryLibrary {
+  id: string;
+  workspaceId: string;
+  name: string;
+  order: number;
+  icon?: string; // For future use
+}
+
+export interface InventoryItem {
+  id: string;
+  workspaceId: string;
+  libraryId: string;
+  text: string;
+  order: number;
+}
+
+// 4. Universal Content Model
+export type ContentType = 'PROJECT' | 'DRAFT' | 'LEAD_MAGNET' | 'TASK' | 'ASSET';
+
+export type ContentStatus = 'draft' | 'scheduled' | 'published' | 'completed' | 'failed';
+export type ContentPlatform = 'LinkedIn' | 'Instagram' | 'X (Twitter)' | 'Newsletter' | null;
 
 export interface UniversalContent {
   id: string;
   workspaceId: string;
   type: ContentType;
   title: string;
-  projectId?: string; // For items belonging to a project
-  tags: string[];
+  body?: Record<string, unknown>; // TipTap JSON AST
+  cta?: string;
+  projectId?: string;
+  contentPillars: string[];
+  platform: ContentPlatform;
+  status: ContentStatus;
+  scheduledFor: string | null; // ISO Date string
   isStarred: boolean;
   isArchived: boolean;
   isTrashed: boolean;
-  createdAt: string;
-  updatedAt: string;
   syncStatus: 'synced' | 'pending' | 'error';
   
   // Extended fields stored as JSON
-  body?: Record<string, unknown>; // TipTap JSON AST
   description?: string; // For projects
-  isCompleted?: boolean; // For tasks
-  dueDate?: string; // For tasks
-  assetUrl?: string; // For assets
-  assetType?: string; // Images, PDF, DOCX, XLSX, CSV, PPTX
+  
+  // For tasks
+  isCompleted?: boolean; 
+  dueDate?: string; 
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  reminder?: string | null;
+  isRepeating?: boolean;
+
+  // For assets
+  assetUrl?: string; 
+  assetType?: string; 
 }
 
 // Define the Database
@@ -59,14 +88,18 @@ const db = new Dexie('ControDB') as Dexie & {
   settings: EntityTable<Setting, 'id'>;
   notifications: EntityTable<Notification, 'id'>;
   content: EntityTable<UniversalContent, 'id'>;
+  inventoryLibraries: EntityTable<InventoryLibrary, 'id'>;
+  inventoryItems: EntityTable<InventoryItem, 'id'>;
 };
 
 // Schema declaration
-db.version(2).stores({
+db.version(4).stores({
   workspaces: 'id',
   settings: 'id, workspaceId',
   notifications: 'id, workspaceId, isRead',
-  content: 'id, workspaceId, type, title, projectId, *tags, isStarred, isArchived, isTrashed, syncStatus, updatedAt'
+  content: 'id, workspaceId, type, title, projectId, *contentPillars, platform, status, scheduledFor, isStarred, isArchived, isTrashed, syncStatus',
+  inventoryLibraries: 'id, workspaceId, order',
+  inventoryItems: 'id, workspaceId, libraryId, order'
 });
 
 export { db };

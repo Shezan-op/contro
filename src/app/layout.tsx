@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { ToastProvider } from "@/components/ui/Toast";
+import { AuthCheck } from "@/components/providers/AuthCheck";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,8 +29,17 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${sourceSans.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col font-body">{children}</body>
+      <body className="min-h-full flex flex-col font-body">
+        <ThemeProvider>
+          <ToastProvider>
+            <AuthCheck>
+              {children}
+            </AuthCheck>
+          </ToastProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

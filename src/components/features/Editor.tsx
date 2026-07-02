@@ -29,7 +29,7 @@ export function Editor({ content, onChange, isEditable = true }: EditorProps) {
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-lg dark:prose-invert focus:outline-none max-w-none w-full min-h-[500px] text-lg bg-transparent text-[var(--text)] leading-relaxed',
+        class: 'tiptap-editor focus:outline-none max-w-none w-full min-h-[500px] text-lg bg-transparent text-[var(--text)] leading-relaxed',
       },
     },
   });

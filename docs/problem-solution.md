@@ -13,3 +13,7 @@ This document tracks implementation challenges, architectural roadblocks, and th
 ## Problem 3: Splash Screen Animation Requirements
 **Context:** Standard Framer Motion `opacity` animations were insufficient for the specific "static outline with left-to-right fill" requirement.
 **Solution:** Employed CSS `WebkitTextStroke` to render the transparent static outline. Utilized Framer Motion's `clipPath` property (`inset(0 100% 0 0)` to `inset(0 0% 0 0)`) to cleanly wipe the solid text color across the screen letter-by-letter, matching the premium aesthetic.
+
+## Problem 4: Tailwind Typography Plugin Resolution Error in Next.js Turbopack
+**Context:** The Next.js 14+ (Turbopack) build crashed with `CssSyntaxError: Can't resolve '@tailwindcss/typography'` when importing the plugin via `@plugin "@tailwindcss/typography";` in `globals.css`. 
+**Solution:** Removed the `@tailwindcss/typography` dependency and the plugin import. Instead, implemented custom CSS rules targeting `.tiptap-editor` directly in `globals.css`. This provides tighter control over the visual aesthetic (locking in Geist and Source Sans 3) while keeping the bundle lighter and avoiding the bundler resolution issue.

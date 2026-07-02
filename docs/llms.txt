@@ -1,0 +1,30 @@
+# Contro
+> A local-first, offline-capable Content Operating System.
+
+## Core Architecture
+- **Local-First**: Dexie.js (IndexedDB) is the primary source of truth.
+- **State**: Zustand is hydrated from Dexie and acts as the reactive data source for components.
+- **Styling**: Tailwind CSS v4, utilizing CSS variables (`--background`, `--surface`, etc.) in `globals.css` for light/dark theming.
+- **Typography**: Geist (headings), Source Sans 3 (body).
+
+## Key Concepts
+
+### Universal Content Model
+All written work (drafts, scheduled posts, calendar entries) shares a single `UniversalContent` model.
+- A draft becomes a scheduled post merely by setting a `scheduledFor` timestamp.
+- No `tags` or timestamps (`createdAt`, `updatedAt`) are used to maintain ultra-low friction.
+
+### Inventory System
+A permanent, reusable library separate from Universal Content. Used for saving templates, hooks, and scripts.
+
+### Auth & Navigation
+- `AuthCheck.tsx` guards routes and handles client-side redirects between `/splash`, `/login`, and `/`.
+- Uses `loadInitialData()` from the Zustand store to fetch data into memory on load.
+
+## Core Directories
+- `src/app/`: Next.js App Router pages and layouts.
+- `src/components/`: Reusable UI components (Sidebar, LoadingSkeleton, Modals).
+- `src/store/`: Zustand global state.
+- `src/services/`: Abstraction layer between UI and Dexie.js database.
+- `src/lib/`: Database definitions (`db.ts`) and Supabase clients.
+- `docs/`: System documentation (Changelog, Architecture).
