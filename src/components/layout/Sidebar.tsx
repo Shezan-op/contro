@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { SearchInput } from "@/components/ui/SearchInput";
 
+import { NotificationDropdown } from "./NotificationDropdown";
+
 const NAV_ITEMS = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Writer", href: "/writer", icon: PenLine },
@@ -32,8 +34,9 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 border-r border-[var(--border)] bg-[var(--background)] h-screen flex flex-col hidden md:flex">
-      <div className="p-6">
+      <div className="p-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">Contro</h1>
+        <NotificationDropdown />
       </div>
       
       <div className="px-4 pb-4">
