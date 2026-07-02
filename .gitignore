@@ -42,3 +42,13 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# AI Agent & System Files
+/.agents/
+/.codex/
+/claude.md
+/agents.md
+/CLAUDE.md
+/AGENTS.md
+/.gemini/
+
