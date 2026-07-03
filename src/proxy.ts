@@ -1,29 +1,60 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 
 export async function proxy(request: NextRequest) {
-  const isAuthenticated = request.cookies.has('contro_session')
+  let supabaseResponse = NextResponse.next({
+    request,
+  })
 
-  const isAuthPage = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup')
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
 
-  // If unauthenticated and not on an auth page, redirect to login
-  if (!isAuthenticated && !isAuthPage) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { pathname } = request.nextUrl
+  const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/signup')
+
+  if (isPublicRoute && user) {
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // If authenticated and trying to access an auth page, redirect to dashboard
-  if (isAuthenticated && isAuthPage) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
+  if (!isPublicRoute && !user) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  return NextResponse.next()
+  return supabaseResponse
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|api|favicon.ico|manifest.json|icon-192x192.png|icon-512x512.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
+     * - icon-192x192.png, icon-512x512.png, apple-touch-icon.png (PWA icons)
+     * - manifest.json
+     */
+    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|manifest.json|icon-.*|apple-touch-icon.png|.*\\.svg$).*)',
   ],
 }

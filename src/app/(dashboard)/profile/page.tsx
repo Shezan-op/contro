@@ -1,41 +1,50 @@
 "use client";
 
 import { useAppStore } from "@/store/useAppStore";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, User as UserIcon, BarChart3, Edit2, Check, X } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { AUTH_PROFILE_KEY, clearLocalSession, readAuthProfile } from "@/lib/localAuth";
+import { createClient } from "@/lib/supabase/client";
 
 export default function ProfilePage() {
   const { drafts, projects, tasks, leadMagnets } = useAppStore();
   const router = useRouter();
   const { toast } = useToast();
+  const supabase = createClient();
   
-  const initialProfile = readAuthProfile();
-  const [name, setName] = useState(initialProfile?.name || "User");
-  const [email] = useState(initialProfile?.email || "");
+  const [name, setName] = useState("User");
+  const [email, setEmail] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState("");
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
 
-  const handleSaveName = () => {
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setEmail(user.email || "");
+        setName(user.user_metadata?.name || user.email?.split("@")[0] || "User");
+      }
+    });
+  }, [supabase]);
+
+  const handleSaveName = async () => {
     if (tempName.trim()) {
       setName(tempName.trim());
-      const auth = readAuthProfile();
-      if (auth) {
-        localStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify({ ...auth, name: tempName.trim() }));
-      }
+      await supabase.auth.updateUser({
+        data: { name: tempName.trim() }
+      });
       toast("Name updated successfully", "success");
     }
     setIsEditingName(false);
   };
 
   const handleLogout = async () => {
-    await clearLocalSession();
+    await supabase.auth.signOut();
     toast("Logged out successfully", "success");
     router.push("/login");
+    router.refresh();
   };
 
   const totalContent = drafts.length + projects.length + tasks.length + leadMagnets.length;

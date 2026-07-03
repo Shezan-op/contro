@@ -2,9 +2,9 @@
 
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-
 import { useAppStore } from "@/store/useAppStore";
-import { readAuthProfile } from "@/lib/localAuth";
+import { createClient } from "@/lib/supabase/client";
+import { SyncEngine } from "@/lib/syncEngine";
 
 export function AuthCheck({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -12,14 +12,21 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
   const { loadInitialData } = useAppStore();
 
   useEffect(() => {
+    const supabase = createClient();
     const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/signup');
-    if (!isPublicRoute && readAuthProfile()) {
-      const store = useAppStore.getState();
-      if (store.isLoading && !store.workspaceId) {
-        loadInitialData();
-      }
+    if (!isPublicRoute) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          const store = useAppStore.getState();
+          if (store.isLoading && !store.workspaceId) {
+            loadInitialData().then(() => {
+              SyncEngine.startSync();
+            });
+          }
+        }
+      });
     }
-  }, [pathname, router, loadInitialData]);
+  }, [pathname, loadInitialData]);
 
   // Global keyboard shortcut: Cmd+K to open search
   useEffect(() => {
