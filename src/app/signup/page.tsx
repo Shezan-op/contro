@@ -22,8 +22,7 @@ export default function SignupPage() {
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState('');
+  const [signupSuccess, setSignupSuccess] = useState(false);
   
   const router = useRouter();
   const supabase = createClient();
@@ -87,7 +86,7 @@ export default function SignupPage() {
 
     setIsLoading(true);
 
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -105,29 +104,17 @@ export default function SignupPage() {
       return;
     }
     
-    setOtpSent(true);
     setIsLoading(false);
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email,
-      token: otp,
-      type: 'signup'
-    });
-
-    if (verifyError) {
-      setError(verifyError.message || 'Invalid verification code.');
-      setIsLoading(false);
+    
+    // If auto-confirm is enabled or session is immediately available
+    if (data.session) {
+      router.push('/');
+      router.refresh();
       return;
     }
 
-    router.push('/');
-    router.refresh();
+    // Otherwise, require email confirmation
+    setSignupSuccess(true);
   };
 
   const handleGoogleSignIn = async () => {
@@ -139,42 +126,27 @@ export default function SignupPage() {
     });
   };
 
-  if (otpSent) {
+  if (signupSuccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--background)] px-4 font-sans text-[var(--text)]">
-        <div className="w-full max-w-sm p-8 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-sm">
-          <h1 className="text-3xl font-semibold mb-2 tracking-tight text-center font-heading">Verify Email</h1>
+        <div className="w-full max-w-sm p-8 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-sm flex flex-col items-center">
+          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
+          <h1 className="text-3xl font-semibold mb-2 tracking-tight text-center font-heading">Check your email</h1>
           <p className="text-sm text-[var(--muted)] text-center mb-6">
-            We sent a 6-digit code to <span className="font-medium text-[var(--text)]">{email}</span>. Please enter it below.
+            We sent a confirmation link to <span className="font-medium text-[var(--text)]">{email}</span>. Please click it to verify your account and sign in.
           </p>
-          
-          <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
-                className="text-center text-2xl tracking-widest px-3 py-3 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--text)]"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading || otp.length !== 6}
-              className="mt-2 w-full px-4 py-2 bg-[var(--text)] text-[var(--background)] rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isLoading && <Loader2 size={16} className="animate-spin" />}
-              Verify & Continue
-            </button>
-
-            {error && (
-              <p className={`mt-2 p-3 bg-red-100 text-red-700 rounded-md text-sm text-center ${error ? 'animate-[shake_0.5s_ease-in-out]' : ''}`}>
-                {error}
-              </p>
-            )}
-          </form>
+          <button
+            type="button"
+            onClick={() => router.push('/login')}
+            className="w-full px-4 py-2 bg-[var(--text)] text-[var(--background)] rounded-lg font-medium hover:opacity-90 transition-opacity"
+          >
+            Return to Login
+          </button>
         </div>
       </div>
     );

@@ -17,7 +17,7 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient();
-    const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/signup');
+    const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/auth/callback');
     
     if (isPublicRoute) {
       setTimeout(() => setIsChecking(false), 0);
@@ -58,7 +58,7 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [router]);
 
-  const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/signup');
+  const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/auth/callback');
   
   if (!isPublicRoute && isChecking) {
     return (
