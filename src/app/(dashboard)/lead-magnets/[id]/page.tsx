@@ -53,7 +53,7 @@ export default function LeadMagnetDetailsPage() {
       setEditingTitle(lm.title);
       setEditingDesc(lm.description || "");
       
-      const body = (lm.body as any) || {};
+      const body = (lm.body as Record<string, unknown>) || {};
       const loadedPages: LeadMagnetPage[] = Array.isArray(body.pages) && body.pages.length > 0 
         ? body.pages 
         : [{ id: crypto.randomUUID(), title: "Chapter 1", content: { type: "doc", content: [] } }];
@@ -69,14 +69,18 @@ export default function LeadMagnetDetailsPage() {
   }, [params.id, workspaceId, activePageId]);
 
   useEffect(() => {
-    loadLeadMagnet();
+    const timeout = setTimeout(() => {
+      loadLeadMagnet();
+    }, 0);
+    return () => clearTimeout(timeout);
   }, [loadLeadMagnet]);
 
   // Synchronize editor content when active page changes
   useEffect(() => {
     const activePage = pages.find(p => p.id === activePageId);
     if (activePage) {
-      setActivePageContent(activePage.content);
+      const timeout = setTimeout(() => setActivePageContent(activePage.content), 0);
+      return () => clearTimeout(timeout);
     }
   }, [activePageId, pages]);
 

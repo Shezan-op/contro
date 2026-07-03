@@ -9,7 +9,7 @@ export function SplashProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const hasSeenSplash = sessionStorage.getItem("contro_seen_splash");
     if (hasSeenSplash) {
-      setShowSplash(false);
+      setTimeout(() => setShowSplash(false), 0);
     } else {
       const timer = setTimeout(() => {
         sessionStorage.setItem("contro_seen_splash", "true");

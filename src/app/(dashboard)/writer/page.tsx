@@ -68,7 +68,7 @@ function WriterContent() {
             setSaveTo('calendar');
           }
         }
-      }).catch((error: any) => console.error("Failed to load draft", error));
+      }).catch((error: unknown) => console.error("Failed to load draft", error));
     }
   }, [searchParams]);
 

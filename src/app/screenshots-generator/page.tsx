@@ -4,8 +4,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { toPng } from "html-to-image";
 
 // === Constants ===
-const W = 1320;
-const H = 2868;
 
 const IPHONE_SIZES = [
   { label: '6.9" iPhone', w: 1320, h: 2868 },
@@ -65,12 +63,14 @@ function img(path: string): string {
 function Phone({ src, alt, style }: { src: string; alt: string; style?: React.CSSProperties }) {
   return (
     <div style={{ position: "relative", aspectRatio: `${MK_W}/${MK_H}`, ...style }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={img("/mockup.png")} alt="" style={{ display: "block", width: "100%", height: "100%" }} draggable={false} />
       <div style={{
         position: "absolute", zIndex: 10, overflow: "hidden",
         left: `${SC_L}%`, top: `${SC_T}%`, width: `${SC_W}%`, height: `${SC_H}%`,
         borderRadius: `${SC_RX}% / ${SC_RY}%`,
       }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={img(src)} alt={alt} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} draggable={false} />
       </div>
     </div>

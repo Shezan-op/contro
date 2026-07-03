@@ -1,8 +1,11 @@
 import { createClient } from '@/lib/supabase/client';
 import { db, UniversalContent } from '@/lib/db';
 import { useAppStore } from '@/store/useAppStore';
+import type { Database, Json } from '@/lib/database.types';
 
 const supabase = createClient();
+
+type Tables = Database['public']['Tables'];
 
 export class SyncEngine {
   static async startSync() {
@@ -15,9 +18,7 @@ export class SyncEngine {
     await this.pullAllChanges();
 
     // Setup Realtime Subscriptions
-    // We can't rely on updated_at since it was intentionally excluded,
-    // so we rely on initial pull and real-time events.
-    const channels = supabase.channel('custom-all-channel')
+    supabase.channel('custom-all-channel')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public' },
@@ -46,7 +47,7 @@ export class SyncEngine {
     }, 15000); // 15 seconds
   }
 
-  static getTableName(type: string) {
+  static getTableName(type: string): keyof Tables {
     switch (type) {
       case 'PROJECT': return 'projects';
       case 'TASK': return 'tasks';
@@ -66,10 +67,10 @@ export class SyncEngine {
       
       for (const item of pendingContent) {
         const table = this.getTableName(item.type);
-        const { syncStatus, type, ...dbItem } = item;
+        const { ...dbItem } = item;
         
-        // Map fields to what Supabase expects based on our schema
-        const payload: any = {
+        // Base properties shared across all tables
+        const basePayload = {
           id: dbItem.id,
           user_id: user.id,
           workspaceId: dbItem.workspaceId,
@@ -82,27 +83,47 @@ export class SyncEngine {
           isTrashed: dbItem.isTrashed
         };
 
-        if (table === 'projects') {
-          payload.description = dbItem.description;
-        } else if (table === 'tasks') {
-          payload.projectId = dbItem.projectId;
-          payload.isCompleted = dbItem.isCompleted;
-          payload.dueDate = dbItem.dueDate;
-          payload.priority = dbItem.priority;
-          payload.reminder = dbItem.reminder;
-          payload.isRepeating = dbItem.isRepeating;
-        } else if (table === 'lead_magnets') {
-          payload.description = dbItem.description;
-          payload.assetUrl = dbItem.assetUrl;
-          payload.assetType = dbItem.assetType;
-        } else {
-          payload.projectId = dbItem.projectId;
-          payload.body = dbItem.body;
-          payload.cta = dbItem.cta;
-          payload.scheduledFor = dbItem.scheduledFor;
-        }
+        let error = null;
 
-        const { error } = await supabase.from(table).upsert(payload);
+        if (table === 'projects') {
+          const payload: Tables['projects']['Insert'] = {
+            ...basePayload,
+            description: dbItem.description,
+          };
+          const res = await supabase.from('projects').upsert(payload);
+          error = res.error;
+        } else if (table === 'tasks') {
+          const payload: Tables['tasks']['Insert'] = {
+            ...basePayload,
+            projectId: dbItem.projectId,
+            isCompleted: dbItem.isCompleted,
+            dueDate: dbItem.dueDate,
+            priority: dbItem.priority,
+            reminder: dbItem.reminder,
+            isRepeating: dbItem.isRepeating,
+          };
+          const res = await supabase.from('tasks').upsert(payload);
+          error = res.error;
+        } else if (table === 'lead_magnets') {
+          const payload: Tables['lead_magnets']['Insert'] = {
+            ...basePayload,
+            description: dbItem.description,
+            assetUrl: dbItem.assetUrl,
+            assetType: dbItem.assetType,
+          };
+          const res = await supabase.from('lead_magnets').upsert(payload);
+          error = res.error;
+        } else {
+          const payload: Tables['content_items']['Insert'] = {
+            ...basePayload,
+            projectId: dbItem.projectId,
+            body: (dbItem.body as unknown) as Json,
+            cta: dbItem.cta,
+            scheduledFor: dbItem.scheduledFor,
+          };
+          const res = await supabase.from('content_items').upsert(payload);
+          error = res.error;
+        }
         
         if (!error) {
           await db.content.update(item.id, { syncStatus: 'synced' });
@@ -120,7 +141,7 @@ export class SyncEngine {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const tables = ['projects', 'content_items', 'tasks', 'lead_magnets'];
+      const tables: (keyof Tables)[] = ['projects', 'content_items', 'tasks', 'lead_magnets'];
       
       for (const table of tables) {
         const { data, error } = await supabase.from(table).select('*');
@@ -137,55 +158,65 @@ export class SyncEngine {
     }
   }
 
-  static async handleRemoteChange(payload: any) {
+  static async handleRemoteChange(payload: Record<string, unknown>) {
     if (payload.eventType === 'DELETE') {
-      await db.content.delete(payload.old.id);
+      const oldPayload = payload.old as Record<string, string>;
+      const oldId = oldPayload.id;
+      const local = await db.content.get(oldId);
+      // Local data always wins against deletion if it has pending changes
+      if (local && local.syncStatus === 'pending') {
+        console.warn("Conflict detected for deletion of", oldId, "Keeping local changes.");
+      } else {
+        await db.content.delete(oldId);
+      }
     } else {
-      await this.mergeRemoteItem(payload.table, payload.new);
+      await this.mergeRemoteItem(payload.table as string, payload.new as Record<string, unknown>);
     }
     useAppStore.getState().refreshData();
   }
 
-  static async mergeRemoteItem(table: string, remote: any) {
-    const local = await db.content.get(remote.id);
+  static async mergeRemoteItem(table: keyof Tables | string, remote: Record<string, unknown>) {
+    const remoteId = remote.id as string;
+    const local = await db.content.get(remoteId);
     
-    let type: any = 'DRAFT';
+    let type: UniversalContent['type'] = 'DRAFT';
     if (table === 'projects') type = 'PROJECT';
     if (table === 'tasks') type = 'TASK';
     if (table === 'lead_magnets') type = 'LEAD_MAGNET';
 
-    const mapped = {
-      id: remote.id,
-      workspaceId: remote.workspaceId,
+    const mapped: UniversalContent = {
+      id: remote.id as string,
+      workspaceId: remote.workspaceId as string,
       type,
-      title: remote.title,
-      status: remote.status,
-      platform: remote.platform,
-      contentPillars: remote.contentPillars || [],
-      isStarred: remote.isStarred || false,
-      isArchived: remote.isArchived || false,
-      isTrashed: remote.isTrashed || false,
-      syncStatus: 'synced' as const,
-    } as UniversalContent;
+      title: remote.title as string,
+      status: remote.status as UniversalContent['status'],
+      platform: remote.platform as UniversalContent['platform'],
+      contentPillars: (remote.contentPillars as string[]) || [],
+      isStarred: (remote.isStarred as boolean) || false,
+      isArchived: (remote.isArchived as boolean) || false,
+      isTrashed: (remote.isTrashed as boolean) || false,
+      syncStatus: 'synced',
+      scheduledFor: null,
+    };
 
     if (table === 'projects') {
-      mapped.description = remote.description;
+      mapped.description = remote.description as string;
     } else if (table === 'tasks') {
-      mapped.projectId = remote.projectId;
-      mapped.isCompleted = remote.isCompleted;
-      mapped.dueDate = remote.dueDate;
-      mapped.priority = remote.priority;
-      mapped.reminder = remote.reminder;
-      mapped.isRepeating = remote.isRepeating;
+      mapped.projectId = remote.projectId as string;
+      mapped.isCompleted = remote.isCompleted as boolean;
+      mapped.dueDate = remote.dueDate as string;
+      mapped.priority = remote.priority as 'low' | 'medium' | 'high' | 'urgent';
+      mapped.reminder = remote.reminder as string;
+      mapped.isRepeating = remote.isRepeating as boolean;
     } else if (table === 'lead_magnets') {
-      mapped.description = remote.description;
-      mapped.assetUrl = remote.assetUrl;
-      mapped.assetType = remote.assetType;
+      mapped.description = remote.description as string;
+      mapped.assetUrl = remote.assetUrl as string;
+      mapped.assetType = remote.assetType as string;
     } else {
-      mapped.projectId = remote.projectId;
-      mapped.body = remote.body;
-      mapped.cta = remote.cta;
-      mapped.scheduledFor = remote.scheduledFor;
+      mapped.projectId = remote.projectId as string;
+      mapped.body = (remote.body as unknown) as Record<string, unknown>;
+      mapped.cta = remote.cta as string;
+      mapped.scheduledFor = remote.scheduledFor as string;
     }
 
     if (!local) {
@@ -197,7 +228,7 @@ export class SyncEngine {
       // CONFLICT: local is pending, remote also changed!
       // In a real app we'd trigger a conflict UI. For now, keep local (since user just edited it).
       // A more complex resolution could be presented via a modal using a global state.
-      console.warn("Conflict detected for", local.id, "Keeping local changes.");
+      console.warn("Conflict detected for", remoteId, "Keeping local changes.");
     }
   }
 }

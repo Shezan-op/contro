@@ -3,35 +3,129 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { 
+  validateEmailSyntax, 
+  isDisposableEmail, 
+  checkEmailTypo, 
+  calculatePasswordStrength, 
+  validatePasswordRules, 
+  PasswordStrength 
+} from '@/lib/validation';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [suggestion, setSuggestion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  
   const router = useRouter();
   const supabase = createClient();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const passwordStrength: PasswordStrength = calculatePasswordStrength(password);
+  const passwordErrors = validatePasswordRules(password);
+
+  const getStrengthColor = () => {
+    if (password.length === 0) return 'bg-gray-200';
+    if (passwordStrength === 'Weak') return 'bg-red-500';
+    if (passwordStrength === 'Medium') return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setEmail(val);
+    setError('');
+    
+    const typo = checkEmailTypo(val);
+    if (typo) {
+      setSuggestion(`Did you mean ${typo}?`);
+    } else {
+      setSuggestion(null);
+    }
+  };
+
+  const handleSuggestionClick = () => {
+    if (suggestion) {
+      const match = suggestion.match(/Did you mean (.*?)\?/);
+      if (match && match[1]) {
+        setEmail(match[1]);
+        setSuggestion(null);
+      }
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    if (!validateEmailSyntax(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    if (isDisposableEmail(email)) {
+      setError('Temporary email addresses are not allowed. Please use a real email.');
+      return;
+    }
+
+    if (passwordStrength === 'Weak') {
+      setError('Password is too weak. Please meet all the requirements.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     setIsLoading(true);
 
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+      }
     });
 
     if (signUpError) {
-      setError(signUpError.message);
+      if (signUpError.message.includes('User already registered')) {
+        setError('An account with this email already exists. Please log in instead.');
+      } else {
+        setError(signUpError.message);
+      }
       setIsLoading(false);
       return;
     }
     
-    // Redirect to dashboard
+    setOtpSent(true);
+    setIsLoading(false);
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token: otp,
+      type: 'signup'
+    });
+
+    if (verifyError) {
+      setError(verifyError.message || 'Invalid verification code.');
+      setIsLoading(false);
+      return;
+    }
+
     router.push('/');
     router.refresh();
   };
@@ -40,18 +134,59 @@ export default function SignupPage() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
   };
 
+  if (otpSent) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--background)] px-4 font-sans text-[var(--text)]">
+        <div className="w-full max-w-sm p-8 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-sm">
+          <h1 className="text-3xl font-semibold mb-2 tracking-tight text-center font-heading">Verify Email</h1>
+          <p className="text-sm text-[var(--muted)] text-center mb-6">
+            We sent a 6-digit code to <span className="font-medium text-[var(--text)]">{email}</span>. Please enter it below.
+          </p>
+          
+          <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <input
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                className="text-center text-2xl tracking-widest px-3 py-3 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--text)]"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading || otp.length !== 6}
+              className="mt-2 w-full px-4 py-2 bg-[var(--text)] text-[var(--background)] rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isLoading && <Loader2 size={16} className="animate-spin" />}
+              Verify & Continue
+            </button>
+
+            {error && (
+              <p className={`mt-2 p-3 bg-red-100 text-red-700 rounded-md text-sm text-center ${error ? 'animate-[shake_0.5s_ease-in-out]' : ''}`}>
+                {error}
+              </p>
+            )}
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--background)] px-4 font-sans text-[var(--text)]">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--background)] px-4 py-12 font-sans text-[var(--text)]">
       <div className="w-full max-w-sm p-8 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-sm">
-        <h1 className="text-3xl font-semibold mb-6 tracking-tight text-center font-heading">Join Contro</h1>
+        <h1 className="text-3xl font-semibold mb-6 tracking-tight text-center font-heading">Create Account</h1>
         
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
+        <form onSubmit={handleSignup} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2 relative">
             <label className="text-sm font-medium" htmlFor="email">
               Email
             </label>
@@ -59,11 +194,20 @@ export default function SignupPage() {
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleEmailChange}
               placeholder="you@example.com"
               required
-              className="px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--text)] placeholder:text-[var(--muted)]"
+              className="px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--text)] placeholder:text-[var(--muted)] transition-all"
             />
+            {suggestion && (
+              <button 
+                type="button" 
+                onClick={handleSuggestionClick}
+                className="text-xs text-left text-blue-500 hover:text-blue-600 mt-1"
+              >
+                {suggestion}
+              </button>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -78,7 +222,7 @@ export default function SignupPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="w-full px-3 py-2 pr-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--text)] placeholder:text-[var(--muted)]"
+                className="w-full px-3 py-2 pr-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--text)] placeholder:text-[var(--muted)] transition-all"
               />
               <button
                 type="button"
@@ -88,14 +232,50 @@ export default function SignupPage() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            
+            {/* Password Strength Indicator */}
+            {password.length > 0 && (
+              <div className="mt-1 flex flex-col gap-1">
+                <div className="flex gap-1 h-1.5 w-full">
+                  <div className={`flex-1 rounded-full transition-colors duration-300 ${getStrengthColor()}`} />
+                  <div className={`flex-1 rounded-full transition-colors duration-300 ${passwordStrength === 'Medium' || passwordStrength === 'Strong' ? getStrengthColor() : 'bg-gray-200'}`} />
+                  <div className={`flex-1 rounded-full transition-colors duration-300 ${passwordStrength === 'Strong' ? getStrengthColor() : 'bg-gray-200'}`} />
+                </div>
+                <span className="text-xs text-[var(--muted)]">Strength: {passwordStrength}</span>
+              </div>
+            )}
+            
+            {password.length > 0 && passwordErrors.length > 0 && (
+              <ul className="text-xs text-[var(--muted)] list-disc pl-4 mt-1">
+                {passwordErrors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium" htmlFor="confirmPassword">
+              Confirm Password
+            </label>
+            <input
+              id="confirmPassword"
+              type={showPassword ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--text)] placeholder:text-[var(--muted)] transition-all"
+            />
           </div>
 
           <button
             type="submit"
-            disabled={isLoading}
-            className="mt-2 w-full px-4 py-2 bg-[var(--text)] text-[var(--background)] rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            disabled={isLoading || passwordStrength === 'Weak'}
+            className="mt-2 w-full px-4 py-2 bg-[var(--text)] text-[var(--background)] rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex justify-center items-center gap-2"
           >
-            {isLoading ? 'Creating account...' : 'Create Account'}
+            {isLoading && <Loader2 size={16} className="animate-spin" />}
+            Continue with Email
           </button>
           
           <div className="relative my-4">
@@ -122,15 +302,15 @@ export default function SignupPage() {
           </button>
 
           {error && (
-            <p className="mt-4 p-3 bg-red-100 text-red-700 rounded-md text-sm text-center">
+            <div className={`mt-4 p-3 bg-red-100 text-red-700 rounded-md text-sm text-center ${error ? 'animate-[shake_0.5s_ease-in-out]' : ''}`}>
               {error}
-            </p>
+            </div>
           )}
 
           <div className="mt-4 text-center text-sm text-[var(--muted)]">
             Already have an account?{' '}
-            <Link href="/login" className="text-[var(--text)] hover:underline">
-              Sign In
+            <Link href="/login" className="text-[var(--text)] hover:underline font-medium">
+              Log in instead
             </Link>
           </div>
         </form>

@@ -6,6 +6,7 @@ import { ToastProvider } from "@/components/ui/Toast";
 import { AuthCheck } from "@/components/providers/AuthCheck";
 import { SplashProvider } from "@/components/providers/SplashProvider";
 import { Analytics } from "@vercel/analytics/next";
+import { Cursor } from "@/components/ui/Cursor";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,6 +49,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-body">
+        <Cursor />
         <ThemeProvider>
           <ToastProvider>
             <SplashProvider>

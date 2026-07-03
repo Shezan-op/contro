@@ -139,6 +139,7 @@
   --animate-scale-in: scaleIn 0.2s ease-out;
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-slide-in-right: slideInRight 0.3s ease-out;
+  --animate-shake: shake 0.5s ease-in-out;
   
   @keyframes fadeIn {
     from { opacity: 0; }
@@ -159,6 +160,12 @@
   @keyframes slideInRight {
     from { transform: translateX(20px); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
   }
 }
 

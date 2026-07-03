@@ -1,32 +1,50 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";
 import { createClient } from "@/lib/supabase/client";
 import { SyncEngine } from "@/lib/syncEngine";
+import { Loader2 } from "lucide-react";
 
 export function AuthCheck({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { loadInitialData } = useAppStore();
+  
+  const [isChecking, setIsChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
     const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/signup');
-    if (!isPublicRoute) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          const store = useAppStore.getState();
-          if (store.isLoading && !store.workspaceId) {
-            loadInitialData().then(() => {
-              SyncEngine.startSync();
-            });
-          }
-        }
-      });
+    
+    if (isPublicRoute) {
+      setTimeout(() => setIsChecking(false), 0);
+      return;
     }
-  }, [pathname, loadInitialData]);
+
+    const checkSession = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error || !session) {
+        setIsAuthenticated(false);
+        setIsChecking(false);
+        router.push('/login');
+        return;
+      }
+
+      setIsAuthenticated(true);
+      const store = useAppStore.getState();
+      if (store.isLoading && !store.workspaceId) {
+        await loadInitialData();
+        SyncEngine.startSync();
+      }
+      setIsChecking(false);
+    };
+
+    checkSession();
+  }, [pathname, loadInitialData, router]);
 
   // Global keyboard shortcut: Cmd+K to open search
   useEffect(() => {
@@ -39,6 +57,20 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [router]);
+
+  const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/signup');
+  
+  if (!isPublicRoute && isChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#121212]">
+        <Loader2 className="w-8 h-8 animate-spin text-black dark:text-white" />
+      </div>
+    );
+  }
+
+  if (!isPublicRoute && !isAuthenticated) {
+    return null; // Will redirect in useEffect
+  }
 
   return <>{children}</>;
 }

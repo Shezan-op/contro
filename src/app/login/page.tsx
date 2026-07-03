@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
   const router = useRouter();
   const supabase = createClient();
 
@@ -26,8 +27,16 @@ export default function LoginPage() {
     });
 
     if (signInError) {
-      setError(signInError.message);
       setIsLoading(false);
+      // Supabase obscures user existence by default. 
+      // If Email Enumeration Protection is disabled, it might return specific errors.
+      if (signInError.message.toLowerCase().includes('invalid login credentials')) {
+        setError('Incorrect email or password.');
+      } else if (signInError.message.toLowerCase().includes('not found')) {
+        setError('No account found with this email. Please sign up first.');
+      } else {
+        setError(signInError.message);
+      }
       return;
     }
     
@@ -39,7 +48,7 @@ export default function LoginPage() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
   };
@@ -61,14 +70,20 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--text)] placeholder:text-[var(--muted)]"
+              className="px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--text)] placeholder:text-[var(--muted)] transition-all"
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium" htmlFor="password">
-              Password
-            </label>
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-medium" htmlFor="password">
+                Password
+              </label>
+              <Link href="#" className="text-xs text-blue-500 hover:text-blue-600 transition-colors">
+                Forgot password?
+              </Link>
+            </div>
+            
             <div className="relative">
               <input
                 id="password"
@@ -77,7 +92,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="w-full px-3 py-2 pr-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--text)] placeholder:text-[var(--muted)]"
+                className="w-full px-3 py-2 pr-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--text)] placeholder:text-[var(--muted)] transition-all"
               />
               <button
                 type="button"
@@ -92,9 +107,10 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="mt-2 w-full px-4 py-2 bg-[var(--text)] text-[var(--background)] rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="mt-2 w-full px-4 py-2 bg-[var(--text)] text-[var(--background)] rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {isLoading ? 'Signing in...' : 'Sign In'}
+            {isLoading && <Loader2 size={16} className="animate-spin" />}
+            Sign In
           </button>
           
           <div className="relative my-4">
@@ -121,15 +137,15 @@ export default function LoginPage() {
           </button>
 
           {error && (
-            <p className="mt-4 p-3 bg-red-100 text-red-700 rounded-md text-sm text-center">
+            <div className={`mt-4 p-3 bg-red-100 text-red-700 rounded-md text-sm text-center ${error ? 'animate-[shake_0.5s_ease-in-out]' : ''}`}>
               {error}
-            </p>
+            </div>
           )}
 
           <div className="mt-4 text-center text-sm text-[var(--muted)]">
             Don&apos;t have an account?{' '}
-            <Link href="/signup" className="text-[var(--text)] hover:underline">
-              Sign Up
+            <Link href="/signup" className="text-[var(--text)] hover:underline font-medium">
+              Create an account
             </Link>
           </div>
         </form>

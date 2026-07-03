@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Authentication Overhaul**: Implemented strict login and signup segregation using Supabase Auth.
+- **OTP Verification**: Added 6-digit email OTP verification for new user signups.
+- **Validation System**: Added email typo detection, disposable email blocking, and robust password strength requirements.
+- **UI/UX**: Added a custom spring-animated cursor, password visibility toggles, strength meters, and error-state micro-animations (shake).
 - **App Store Screenshots Generator**: A programmatic page built at `/screenshots-generator` using `html-to-image` to export high-quality marketing assets and slides.
 - **Notifications**: Added a notification system.
 - **Tasks Overhaul**: Complete task overhaul including nested subtasks.

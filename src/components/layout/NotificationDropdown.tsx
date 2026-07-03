@@ -21,9 +21,14 @@ export function NotificationDropdown() {
   };
 
   useEffect(() => {
-    fetchNotifications();
+    const initialTimeout = setTimeout(fetchNotifications, 0);
     const interval = setInterval(fetchNotifications, 10000); // Polling every 10s for demo
-    return () => clearInterval(interval);
+    
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
   useEffect(() => {

@@ -17,3 +17,11 @@ This document tracks implementation challenges, architectural roadblocks, and th
 ## Problem 4: Tailwind Typography Plugin Resolution Error in Next.js Turbopack
 **Context:** The Next.js 14+ (Turbopack) build crashed with `CssSyntaxError: Can't resolve '@tailwindcss/typography'` when importing the plugin via `@plugin "@tailwindcss/typography";` in `globals.css`. 
 **Solution:** Removed the `@tailwindcss/typography` dependency and the plugin import. Instead, implemented custom CSS rules targeting `.tiptap-editor` directly in `globals.css`. This provides tighter control over the visual aesthetic (locking in Geist and Source Sans 3) while keeping the bundle lighter and avoiding the bundler resolution issue.
+
+## Problem 5: Supabase Auth Email Enumeration & Strict Segregation
+**Context:** The application required strict separation between Signup (new users only) and Login (existing users only), with explicit error messages ("User already exists" or "User not found"). Supabase obscures these errors by default for security (Email Enumeration Protection).
+**Solution:** We built the front-end to explicitly map specific error string subsets to the requested UX messages. However, for "User not found" to trigger appropriately, the project administrator must toggle off "Email Enumeration Protection" in the Supabase Dashboard. Without this, Supabase will uniformly return "Invalid login credentials". We also implemented a robust validation layer in `src/lib/validation.ts` to intercept disposable emails and weak passwords before they ever hit the Supabase API.
+
+## Problem 6: Custom Cursor in Next.js 14
+**Context:** Adding a global custom cursor caused hydration mismatch errors and interfered with mobile touch interactions.
+**Solution:** Created a client-side only `<Cursor />` component mounted in `layout.tsx`. It uses `window.matchMedia("(pointer: coarse)")` to detect touch devices and cleanly unmounts itself to preserve native mobile behavior. It uses CSS `mix-blend-difference` for high-contrast visibility across light/dark backgrounds.
