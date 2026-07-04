@@ -6,7 +6,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { LeadMagnetService } from "@/services/LeadMagnetService";
 import { ContentService } from "@/services/ContentService";
 import { UniversalContent } from "@/lib/db";
-import { ArrowLeft, Trash2, Save, Plus, FileText, Settings, X, MoreVertical } from "lucide-react";
+import { ArrowLeft, Trash2, Save, Plus, FileText, Menu, X, PanelLeft } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
@@ -34,14 +34,24 @@ export default function LeadMagnetDetailsPage() {
   const [editingDesc, setEditingDesc] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
+  // Start sidebar closed on mobile, open on desktop
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Page-by-page state
   const [pages, setPages] = useState<LeadMagnetPage[]>([]);
   const [activePageId, setActivePageId] = useState<string | null>(null);
-
-  // We track the editor's latest content for the active page so we can save it.
   const [activePageContent, setActivePageContent] = useState<JSONContent>({ type: "doc", content: [] });
+
+  useEffect(() => {
+    let mounted = true;
+    if (window.innerWidth >= 768) {
+      setTimeout(() => {
+        if (mounted) setIsSidebarOpen(true);
+      }, 0);
+    }
+    return () => { mounted = false; };
+  }, []);
 
   const loadLeadMagnet = useCallback(async () => {
     if (!workspaceId) return;
@@ -75,7 +85,6 @@ export default function LeadMagnetDetailsPage() {
     return () => clearTimeout(timeout);
   }, [loadLeadMagnet]);
 
-  // Synchronize editor content when active page changes
   useEffect(() => {
     const activePage = pages.find(p => p.id === activePageId);
     if (activePage) {
@@ -105,13 +114,18 @@ export default function LeadMagnetDetailsPage() {
     if (!leadMagnet) return;
     setIsSaving(true);
     
-    // Ensure the current active page content is fully flushed to the pages array
     const updatedPages = pages.map(p => p.id === activePageId ? { ...p, content: activePageContent } : p);
     
     await LeadMagnetService.update(leadMagnet.id, { body: { pages: updatedPages } });
     toast('Lead Magnet saved successfully', 'success');
-    setPages(updatedPages); // Sync local state
+    setPages(updatedPages);
     setIsSaving(false);
+  };
+
+  const savePagesImmediately = async (newPages: LeadMagnetPage[]) => {
+    if (!leadMagnet) return;
+    setPages(newPages);
+    await LeadMagnetService.update(leadMagnet.id, { body: { pages: newPages } });
   };
 
   const handleDelete = async () => {
@@ -123,35 +137,44 @@ export default function LeadMagnetDetailsPage() {
     }
   };
 
-  const handleAddPage = () => {
+  const handleAddPage = async () => {
     const newPage = { id: crypto.randomUUID(), title: `Chapter ${pages.length + 1}`, content: { type: "doc", content: [] } };
-    setPages(prev => [...prev, newPage]);
+    const newPages = [...pages, newPage];
+    await savePagesImmediately(newPages);
     setActivePageId(newPage.id);
-    toast('New page added', 'info');
+    toast('New page added', 'success');
   };
 
-  const handleDeletePage = (id: string, e: React.MouseEvent) => {
+  const handleDeletePage = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (pages.length <= 1) {
       toast('You must have at least one page', 'error');
       return;
     }
     const filtered = pages.filter(p => p.id !== id);
-    setPages(filtered);
+    await savePagesImmediately(filtered);
     if (activePageId === id) {
       setActivePageId(filtered[0].id);
     }
     toast('Page deleted', 'info');
   };
 
-  const handleRenamePage = (id: string, newTitle: string) => {
-    setPages(prev => prev.map(p => p.id === id ? { ...p, title: newTitle } : p));
+  const handleRenamePage = async (id: string, newTitle: string) => {
+    const newPages = pages.map(p => p.id === id ? { ...p, title: newTitle } : p);
+    setPages(newPages);
+    // Don't auto-save on every keystroke, let handleSaveContent or blur handle it
+  };
+
+  const handleRenamePageBlur = async () => {
+    if (!leadMagnet) return;
+    const updatedPages = pages.map(p => p.id === activePageId ? { ...p, content: activePageContent } : p);
+    await LeadMagnetService.update(leadMagnet.id, { body: { pages: updatedPages } });
   };
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto p-8 space-y-8 flex">
-        <LoadingSkeleton variant="list" className="w-64 shrink-0 mr-8" />
+      <div className="max-w-6xl mx-auto p-8 flex space-x-8">
+        <LoadingSkeleton variant="list" className="w-64 shrink-0 hidden md:block" />
         <div className="flex-1 space-y-4">
           <LoadingSkeleton variant="text" className="h-10 w-48 mb-2" />
           <LoadingSkeleton variant="page" />
@@ -173,32 +196,59 @@ export default function LeadMagnetDetailsPage() {
   const activePage = pages.find(p => p.id === activePageId);
 
   return (
-    <div className="h-full flex flex-col md:flex-row bg-[var(--background)]">
+    <div className="h-full flex relative bg-[var(--background)] overflow-hidden">
+      
+      {/* Mobile Backdrop */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="md:hidden fixed inset-0 bg-black/50 z-20 backdrop-blur-sm"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Sidebar - Pages */}
       <AnimatePresence initial={false}>
         {isSidebarOpen && (
           <motion.div 
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 280, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            className="border-r border-[var(--border)] bg-[var(--surface)] shrink-0 flex flex-col h-full overflow-hidden"
+            initial={{ x: -280, width: 280 }}
+            animate={{ x: 0, width: 280 }}
+            exit={{ x: -280, width: 280 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="absolute md:relative z-30 h-full border-r border-[var(--border)] bg-[var(--surface)] shrink-0 flex flex-col shadow-2xl md:shadow-none"
           >
             <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
               <h2 className="font-semibold text-sm tracking-wide text-[var(--muted)] uppercase">Contents</h2>
-              <button 
-                onClick={handleAddPage}
-                className="p-1.5 rounded hover:bg-[var(--background)] text-[var(--text)] transition"
-                title="Add Page"
-              >
-                <Plus size={16} />
-              </button>
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={handleAddPage}
+                  className="p-1.5 rounded hover:bg-[var(--background)] text-[var(--text)] transition"
+                  title="Add Page"
+                >
+                  <Plus size={16} />
+                </button>
+                <button 
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-1.5 rounded hover:bg-[var(--background)] text-[var(--muted)] md:hidden transition"
+                  title="Close Sidebar"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
             
             <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-              {pages.map((page, index) => (
+              {pages.map((page) => (
                 <div 
                   key={page.id}
-                  onClick={() => setActivePageId(page.id)}
+                  onClick={() => {
+                    setActivePageId(page.id);
+                    if (window.innerWidth < 768) setIsSidebarOpen(false);
+                  }}
                   className={`group flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
                     activePageId === page.id 
                       ? 'bg-[var(--text)] text-[var(--background)] shadow-sm' 
@@ -210,7 +260,9 @@ export default function LeadMagnetDetailsPage() {
                     type="text" 
                     value={page.title}
                     onChange={(e) => handleRenamePage(page.id, e.target.value)}
+                    onBlur={handleRenamePageBlur}
                     className="bg-transparent border-none outline-none flex-1 font-medium text-sm focus:ring-0 p-0"
+                    onClick={(e) => e.stopPropagation()}
                   />
                   <button 
                     onClick={(e) => handleDeletePage(page.id, e)}
@@ -227,31 +279,31 @@ export default function LeadMagnetDetailsPage() {
 
       {/* Main Editor Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface)]/50 backdrop-blur-sm z-10">
-          <div className="flex items-center gap-3">
+        <header className="px-4 py-3 md:px-6 md:py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface)]/50 backdrop-blur-sm z-10 shrink-0">
+          <div className="flex items-center gap-2 md:gap-3">
             <button 
               onClick={() => router.push('/lead-magnets')}
-              className="p-2 -ml-2 text-[var(--muted)] hover:text-[var(--text)] rounded-md transition"
+              className="p-1.5 md:p-2 -ml-1 md:-ml-2 text-[var(--muted)] hover:text-[var(--text)] rounded-md transition"
               title="Back"
             >
               <ArrowLeft size={20} />
             </button>
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 text-[var(--muted)] hover:text-[var(--text)] rounded-md transition hidden md:block"
+              className="p-1.5 md:p-2 text-[var(--muted)] hover:text-[var(--text)] rounded-md transition"
               title="Toggle Sidebar"
             >
-              <MoreVertical size={20} />
+              <PanelLeft size={20} />
             </button>
             
-            <div className="flex flex-col ml-2 border-l border-[var(--border)] pl-4">
+            <div className="flex flex-col ml-1 md:ml-2 border-l border-[var(--border)] pl-3 md:pl-4">
               <input
                 type="text"
                 value={editingTitle}
                 onChange={(e) => setEditingTitle(e.target.value)}
                 onBlur={handleSaveMeta}
                 onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                className="text-lg font-bold tracking-tight bg-transparent border-none outline-none focus:ring-0 p-0 m-0"
+                className="text-base md:text-lg font-bold tracking-tight bg-transparent border-none outline-none focus:ring-0 p-0 m-0 w-32 md:w-auto"
                 placeholder="Lead Magnet Title"
               />
               <input
@@ -260,38 +312,38 @@ export default function LeadMagnetDetailsPage() {
                 onChange={(e) => setEditingDesc(e.target.value)}
                 onBlur={handleSaveMeta}
                 onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                className="text-xs text-[var(--muted)] bg-transparent border-none outline-none focus:ring-0 p-0 m-0 mt-0.5"
+                className="text-xs text-[var(--muted)] bg-transparent border-none outline-none focus:ring-0 p-0 m-0 mt-0.5 hidden md:block"
                 placeholder="Add a description..."
               />
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2">
             <button 
               onClick={handleSaveContent}
               disabled={isSaving}
-              className="flex items-center gap-2 bg-[var(--text)] text-[var(--background)] px-4 py-2 rounded-lg font-medium hover:opacity-90 transition active:scale-95 shadow-sm disabled:opacity-50"
+              className="flex items-center justify-center gap-1.5 md:gap-2 bg-[var(--text)] text-[var(--background)] px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-medium hover:opacity-90 transition active:scale-95 shadow-sm disabled:opacity-50 text-sm md:text-base"
             >
               <Save size={16} />
-              {isSaving ? 'Saving...' : 'Save'}
+              <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save'}</span>
             </button>
             <button 
               onClick={() => setIsDeleting(true)}
-              className="p-2 text-red-500 hover:text-white hover:bg-red-500 rounded-lg transition"
+              className="p-1.5 md:p-2 text-red-500 hover:text-white hover:bg-red-500 rounded-lg transition"
               title="Delete Lead Magnet"
             >
-              <Trash2 size={20} />
+              <Trash2 size={18} className="md:w-5 md:h-5" />
             </button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 md:p-12 max-w-4xl mx-auto w-full">
+        <div className="flex-1 overflow-y-auto p-4 md:p-12 max-w-4xl mx-auto w-full custom-scrollbar">
           {activePage ? (
             <div className="animate-fade-in" key={activePage.id}>
-              <h1 className="text-4xl font-extrabold text-[var(--text)] mb-8 tracking-tight">{activePage.title}</h1>
-              <div className="prose prose-lg dark:prose-invert max-w-none">
+              <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--text)] mb-6 md:mb-8 tracking-tight">{activePage.title}</h1>
+              <div className="prose prose-base md:prose-lg dark:prose-invert max-w-none pb-24">
                 <Editor 
-                  key={activePage.id} // Forces complete remount of Editor when page changes
+                  key={activePage.id}
                   content={activePageContent} 
                   onChange={handleEditorChange} 
                 />

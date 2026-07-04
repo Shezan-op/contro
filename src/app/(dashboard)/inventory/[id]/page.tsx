@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { InventoryService } from "@/services/InventoryService";
-import { ArrowLeft, Plus, Trash2, GripVertical } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, GripVertical, Copy } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -62,15 +62,26 @@ export default function InventoryLibraryPage() {
     setItems([...items, newItem]);
   };
 
-  const handleUpdateItem = async (id: string, text: string) => {
-    await InventoryService.updateItem(id, text);
-    setItems(items.map(i => i.id === id ? { ...i, text } : i));
+  const handleUpdateItem = async (id: string, title?: string, url?: string) => {
+    await InventoryService.updateItem(id, title, url);
+    setItems(items.map(i => i.id === id ? { ...i, title: title ?? i.title, url: url ?? i.url } : i));
   };
 
   const handleDeleteItem = async (id: string) => {
     await InventoryService.deleteItem(id);
     setItems(items.filter(i => i.id !== id));
     toast('Item deleted', 'success');
+  };
+
+  const handleDuplicateItem = async (id: string) => {
+    if (!workspaceId || !library) return;
+    const itemToCopy = items.find(i => i.id === id);
+    if (!itemToCopy) return;
+    const newItem = await InventoryService.addItem(workspaceId, library.id, `${itemToCopy.title} (Copy)`);
+    await InventoryService.updateItem(newItem.id, `${itemToCopy.title} (Copy)`, itemToCopy.url);
+    newItem.url = itemToCopy.url;
+    setItems([...items, newItem]);
+    toast('Item duplicated', 'success');
   };
 
   if (isLoading) {
@@ -131,21 +142,41 @@ export default function InventoryLibraryPage() {
             <div className="pt-2 text-[var(--muted)] cursor-grab opacity-0 group-hover:opacity-100 transition-opacity">
               <GripVertical size={16} />
             </div>
-            <div className="flex-1 space-y-2">
-              <textarea
-                aria-label="Inventory item text"
-                value={item.text}
+            <div className="flex-1 space-y-3">
+              <input
+                aria-label="Item title"
+                value={item.title || ''}
                 onChange={(e) => {
                   const newItems = [...items];
-                  newItems[index].text = e.target.value;
+                  newItems[index].title = e.target.value;
                   setItems(newItems);
                 }}
-                onBlur={(e) => handleUpdateItem(item.id, e.target.value)}
-                placeholder="Write your content snippet here..."
-                className="w-full min-h-[100px] bg-transparent border-none outline-none resize-y text-[var(--text)] placeholder:text-[var(--muted)]"
+                onBlur={(e) => handleUpdateItem(item.id, e.target.value, item.url)}
+                placeholder="Asset name (e.g. Hero Image, Sales Deck)"
+                className="w-full bg-transparent border-b border-[var(--border)] pb-2 outline-none text-[var(--text)] placeholder:text-[var(--muted)] font-medium"
+              />
+              <input
+                type="url"
+                aria-label="Reference Link"
+                value={item.url || ''}
+                onChange={(e) => {
+                  const newItems = [...items];
+                  newItems[index].url = e.target.value;
+                  setItems(newItems);
+                }}
+                onBlur={(e) => handleUpdateItem(item.id, item.title, e.target.value)}
+                placeholder="https://..."
+                className="w-full bg-transparent border-none outline-none text-sm text-[var(--text)] placeholder:text-[var(--muted)]"
               />
             </div>
-            <div className="pt-1">
+            <div className="pt-1 flex flex-col gap-1">
+              <button type="button" 
+                onClick={() => handleDuplicateItem(item.id)}
+                className="p-1.5 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] rounded-md transition opacity-0 group-hover:opacity-100"
+                aria-label="Duplicate inventory item"
+              >
+                <Copy size={16} />
+              </button>
               <button type="button" 
                 onClick={() => handleDeleteItem(item.id)}
                 className="p-1.5 text-[var(--muted)] hover:text-red-500 hover:bg-red-500/10 rounded-md transition opacity-0 group-hover:opacity-100"

@@ -76,7 +76,7 @@ export class InventoryService {
       .sortBy('order');
   }
 
-  static async addItem(workspaceId: string, libraryId: string, text: string): Promise<InventoryItem> {
+  static async addItem(workspaceId: string, libraryId: string, text: string = ""): Promise<InventoryItem> {
     const items = await this.getItems(libraryId);
     const maxOrder = items.length > 0 ? Math.max(...items.map(i => i.order)) : -1;
     
@@ -85,6 +85,8 @@ export class InventoryService {
       workspaceId,
       libraryId,
       text,
+      title: "",
+      url: "",
       order: maxOrder + 1
     };
     
@@ -92,8 +94,13 @@ export class InventoryService {
     return newItem;
   }
 
-  static async updateItem(id: string, text: string): Promise<void> {
-    await db.inventoryItems.update(id, { text });
+  static async updateItem(id: string, title?: string, url?: string, text?: string): Promise<void> {
+    const updates: Partial<InventoryItem> = {};
+    if (title !== undefined) updates.title = title;
+    if (url !== undefined) updates.url = url;
+    if (text !== undefined) updates.text = text;
+    
+    await db.inventoryItems.update(id, updates);
   }
 
   static async deleteItem(id: string): Promise<void> {

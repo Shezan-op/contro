@@ -7,6 +7,7 @@ import { LogOut, User as UserIcon, BarChart3, Edit2, Check, X } from "lucide-rea
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 
 export default function ProfilePage() {
   const { drafts, projects, tasks, leadMagnets } = useAppStore();
@@ -109,18 +110,18 @@ export default function ProfilePage() {
             <div className="text-3xl font-semibold mb-1">{totalContent}</div>
             <div className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Total Items</div>
           </div>
-          <div className="bg-[var(--background)] p-4 rounded-xl border border-[var(--border)] text-center shadow-sm">
+          <Link href="/writer" className="bg-[var(--background)] p-4 rounded-xl border border-[var(--border)] text-center shadow-sm hover:border-[var(--text)] transition cursor-pointer">
             <div className="text-3xl font-semibold mb-1">{drafts.length}</div>
             <div className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Drafts</div>
-          </div>
-          <div className="bg-[var(--background)] p-4 rounded-xl border border-[var(--border)] text-center shadow-sm">
+          </Link>
+          <Link href="/projects" className="bg-[var(--background)] p-4 rounded-xl border border-[var(--border)] text-center shadow-sm hover:border-[var(--text)] transition cursor-pointer">
             <div className="text-3xl font-semibold mb-1">{projects.length}</div>
             <div className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Projects</div>
-          </div>
-          <div className="bg-[var(--background)] p-4 rounded-xl border border-[var(--border)] text-center shadow-sm">
+          </Link>
+          <Link href="/tasks" className="bg-[var(--background)] p-4 rounded-xl border border-[var(--border)] text-center shadow-sm hover:border-[var(--text)] transition cursor-pointer">
             <div className="text-3xl font-semibold mb-1">{tasks.length}</div>
             <div className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Tasks</div>
-          </div>
+          </Link>
         </div>
       </div>
 

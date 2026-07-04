@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { 
   ChevronLeft, ChevronRight, Search, Plus, Filter, 
-  MoreHorizontal
+  MoreHorizontal, FileText, Copy, Trash2
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { UniversalContent, ContentStatus, ContentPlatform } from "@/lib/db";
@@ -31,7 +31,7 @@ function handleDragOver(e: React.DragEvent) {
 
 export default function CalendarPage() {
   const router = useRouter();
-  const { calendarItems, refreshData } = useAppStore(); // scheduled items
+  const { calendarItems, refreshData, workspaceId } = useAppStore(); // scheduled items
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,6 +58,11 @@ export default function CalendarPage() {
       return true;
     });
   }, [calendarItems, searchQuery, statusFilter, platformFilter]);
+
+  const handleUpdate = async (id: string, updates: Partial<UniversalContent>) => {
+    await ContentService.update(id, updates);
+    await refreshData();
+  };
 
   // Calendar Grid Logic
   const monthStart = startOfMonth(currentDate);
@@ -192,7 +197,16 @@ export default function CalendarPage() {
                       {format(date, "d")}
                     </span>
                     <button type="button" 
-                      onClick={() => router.push('/writer')}
+                      onClick={async () => {
+                        const { workspaceId } = useAppStore.getState();
+                        if (workspaceId) {
+                          const newContent = await ContentService.create(workspaceId, 'DRAFT', { 
+                            scheduledFor: date.toISOString(),
+                            status: 'scheduled'
+                          });
+                          router.push(`/writer?id=${newContent.id}`);
+                        }
+                      }}
                       className="opacity-0 hover:opacity-100 text-[var(--muted)] hover:text-[var(--text)] transition focus:opacity-100"
                       aria-label={`Create post on ${format(date, "MMMM d")}`}
                     >
@@ -250,7 +264,28 @@ export default function CalendarPage() {
               </div>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => router.push(`/writer?id=${selectedItem.id}`)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Edit in Writer">
-                  <MoreHorizontal size={18} />
+                  <FileText size={18} />
+                </button>
+                <button type="button" onClick={async () => {
+                  if (workspaceId) {
+                    const newId = crypto.randomUUID();
+                    await ContentService.create(workspaceId, 'DRAFT', { 
+                      ...selectedItem, 
+                      id: newId, 
+                      title: `${selectedItem.title} (Copy)`
+                    });
+                    refreshData();
+                    setSelectedItem(null);
+                  }
+                }} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" title="Duplicate">
+                  <Copy size={18} />
+                </button>
+                <button type="button" onClick={async () => {
+                  await ContentService.moveToTrash(selectedItem.id);
+                  refreshData();
+                  setSelectedItem(null);
+                }} className="p-2 text-[var(--muted)] hover:text-red-500 hover:bg-[var(--background)] rounded-md transition" title="Delete">
+                  <Trash2 size={18} />
                 </button>
                 <button type="button" onClick={() => setSelectedItem(null)} className="p-2 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--background)] rounded-md transition" aria-label="Close content details">
                   <ChevronRight size={18} className="rotate-90" />
@@ -260,20 +295,71 @@ export default function CalendarPage() {
 
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto flex-1">
-              <h2 className="text-2xl font-bold mb-6 tracking-tight">{selectedItem.title || 'Untitled Document'}</h2>
+              <input 
+                type="text"
+                value={selectedItem.title}
+                onChange={(e) => {
+                  const newTitle = e.target.value;
+                  setSelectedItem({ ...selectedItem, title: newTitle });
+                  handleUpdate(selectedItem.id, { title: newTitle });
+                }}
+                className="text-2xl font-bold mb-6 tracking-tight w-full bg-transparent border-none outline-none focus:ring-0 p-0"
+                placeholder="Untitled Document"
+              />
               
               <div className="grid grid-cols-2 gap-6 mb-8">
                 <div>
                   <h4 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2">Platform</h4>
-                  <div className="text-sm font-medium">{selectedItem.platform || 'Not set'}</div>
+                  <select
+                    value={selectedItem.platform || ''}
+                    onChange={(e) => {
+                      const val = e.target.value as ContentPlatform;
+                      setSelectedItem({ ...selectedItem, platform: val });
+                      handleUpdate(selectedItem.id, { platform: val });
+                    }}
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-md text-sm p-2 outline-none focus:border-[var(--text)]"
+                  >
+                    <option value="">None</option>
+                    <option value="LinkedIn">LinkedIn</option>
+                    <option value="Twitter">Twitter</option>
+                    <option value="Newsletter">Newsletter</option>
+                    <option value="Blog">Blog</option>
+                  </select>
                 </div>
                 <div>
-                  <h4 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2">Content Pillars</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedItem.contentPillars?.length ? selectedItem.contentPillars.map((p) => (
-                      <span key={p} className="px-2 py-1 bg-[var(--surface)] border border-[var(--border)] rounded-md text-xs font-medium">{p}</span>
-                    )) : <span className="text-sm text-[var(--muted)]">None</span>}
-                  </div>
+                  <h4 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2">Status</h4>
+                  <select
+                    value={selectedItem.status || 'draft'}
+                    onChange={(e) => {
+                      const val = e.target.value as ContentStatus;
+                      setSelectedItem({ ...selectedItem, status: val });
+                      handleUpdate(selectedItem.id, { status: val });
+                    }}
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-md text-sm p-2 outline-none focus:border-[var(--text)] capitalize"
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="published">Published</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <h4 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2">Content Pillars (comma separated)</h4>
+                  <input
+                    type="text"
+                    value={selectedItem.contentPillars?.join(', ') || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const pillars = val.split(',').map(s => s.trim()).filter(Boolean);
+                      setSelectedItem({ ...selectedItem, contentPillars: pillars });
+                    }}
+                    onBlur={(e) => {
+                      const pillars = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                      handleUpdate(selectedItem.id, { contentPillars: pillars });
+                    }}
+                    placeholder="e.g. Design, Productivity, Tech"
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-md text-sm p-2 outline-none focus:border-[var(--text)]"
+                  />
                 </div>
               </div>
 

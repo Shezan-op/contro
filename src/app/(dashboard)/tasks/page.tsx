@@ -12,7 +12,8 @@ import {
   ChevronRight,
   FolderOpen,
   Bell,
-  Check
+  Check,
+  Copy
 } from "lucide-react";
 import { TaskService } from "@/services/TaskService";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -62,6 +63,23 @@ export default function TasksPage() {
     await refreshData();
   };
 
+  const handleDuplicate = async (task: UniversalContent) => {
+    if (!workspaceId) return;
+    try {
+      await TaskService.create(workspaceId, `${task.title} (Copy)`, {
+        body: task.body,
+        projectId: task.projectId,
+        priority: task.priority,
+        dueDate: task.dueDate
+      });
+      await refreshData();
+      toast('Task duplicated', 'success');
+    } catch (error) {
+      console.error(error);
+      toast('Failed to duplicate task', 'error');
+    }
+  };
+
   const handleAddSubtask = async (task: UniversalContent, text: string) => {
     if (!text.trim()) return;
     const currentBody = (task.body as Record<string, unknown>) || { subtasks: [] };
@@ -86,6 +104,17 @@ export default function TasksPage() {
           <h1 className="text-4xl font-bold tracking-tight text-[var(--text)]">Tasks</h1>
           <p className="text-[var(--muted)] mt-2 text-lg">Organize your work and manage priorities.</p>
         </div>
+        <button 
+          type="button" 
+          onClick={() => {
+            const input = document.querySelector('input[aria-label="New task title"]') as HTMLInputElement;
+            if (input) input.focus();
+          }}
+          className="flex items-center gap-2 bg-[var(--text)] text-[var(--background)] px-4 py-2 rounded-lg font-medium hover:opacity-90 transition active:scale-95"
+        >
+          <Plus size={18} />
+          New Task
+        </button>
       </header>
 
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-[var(--surface)] p-2 rounded-xl border border-[var(--border)] shadow-sm">
@@ -336,12 +365,22 @@ export default function TasksPage() {
                                   />
                                 </div>
                               </div>
-                              <button 
-                                onClick={() => handleDelete(task.id)}
-                                className="text-red-500 hover:text-red-600 text-sm font-medium px-3 py-1.5 rounded-md hover:bg-red-500/10 transition"
-                              >
-                                Delete Task
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={() => handleDuplicate(task)}
+                                  className="text-[var(--muted)] hover:text-[var(--text)] text-sm font-medium px-3 py-1.5 rounded-md hover:bg-[var(--surface)] transition flex items-center gap-2"
+                                >
+                                  <Copy size={16} />
+                                  Duplicate
+                                </button>
+                                <button 
+                                  onClick={() => handleDelete(task.id)}
+                                  className="text-red-500 hover:text-red-600 text-sm font-medium px-3 py-1.5 rounded-md hover:bg-red-500/10 transition flex items-center gap-2"
+                                >
+                                  <Trash2 size={16} />
+                                  Delete
+                                </button>
+                              </div>
                             </div>
 
                           </div>

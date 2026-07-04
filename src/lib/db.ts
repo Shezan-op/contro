@@ -41,6 +41,8 @@ export interface InventoryItem {
   workspaceId: string;
   libraryId: string;
   text: string;
+  title?: string;
+  url?: string;
   order: number;
 }
 
