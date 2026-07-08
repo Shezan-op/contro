@@ -136,7 +136,7 @@ export default function LeadMagnetsPage() {
           </div>
           <h2 className="text-xl font-medium mb-2">No Lead Magnets Found</h2>
           <p className="text-[var(--muted)] max-w-md mx-auto mb-6">
-            Create lead magnets to capture emails and grow your audience. You can host PDFs, Notion templates, or other resources.
+            Create multi-page text resources to capture emails and grow your audience.
           </p>
           <button type="button" 
             onClick={() => setIsCreating(true)}

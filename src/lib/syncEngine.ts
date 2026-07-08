@@ -8,6 +8,8 @@ const supabase = createClient();
 type Tables = Database['public']['Tables'];
 
 export class SyncEngine {
+  private static isSyncing = false;
+
   static async startSync() {
     if (typeof window === 'undefined') return;
     
@@ -59,67 +61,76 @@ export class SyncEngine {
   }
 
   static async pushPendingChanges() {
+    if (this.isSyncing) return;
+    this.isSyncing = true;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const pendingContent = await db.content.where('syncStatus').equals('pending').toArray();
+      // 1. Process Content Items
+      const pendingContent = await db.content.where('syncStatus').anyOf(['pending', 'pending_delete']).toArray();
       
       for (const item of pendingContent) {
         const table = this.getTableName(item.type);
+        if (item.syncStatus === 'pending_delete') {
+          const res = await supabase.from(table).delete().eq('id', item.id);
+          if (!res.error) await db.content.delete(item.id);
+          continue;
+        }
+
         const { ...dbItem } = item;
-        
-        // Base properties shared across all tables
         const basePayload = {
           id: dbItem.id,
           user_id: user.id,
-          workspaceId: dbItem.workspaceId,
+          "workspaceId": dbItem.workspaceId,
           title: dbItem.title,
           status: dbItem.status,
           platform: dbItem.platform,
-          contentPillars: dbItem.contentPillars,
-          isStarred: dbItem.isStarred,
-          isArchived: dbItem.isArchived,
-          isTrashed: dbItem.isTrashed
+          "contentPillars": dbItem.contentPillars,
+          "isStarred": dbItem.isStarred,
+          "isArchived": dbItem.isArchived,
+          "isTrashed": dbItem.isTrashed,
+          updated_at: dbItem.updatedAt || new Date().toISOString(),
+          created_at: dbItem.createdAt || new Date().toISOString()
         };
 
         let error = null;
 
         if (table === 'projects') {
-          const payload: Tables['projects']['Insert'] = {
+          const payload = {
             ...basePayload,
             description: dbItem.description,
           };
           const res = await supabase.from('projects').upsert(payload);
           error = res.error;
         } else if (table === 'tasks') {
-          const payload: Tables['tasks']['Insert'] = {
+          const payload = {
             ...basePayload,
-            projectId: dbItem.projectId,
-            isCompleted: dbItem.isCompleted,
-            dueDate: dbItem.dueDate,
+            "projectId": dbItem.projectId,
+            "isCompleted": dbItem.isCompleted,
+            "dueDate": dbItem.dueDate,
             priority: dbItem.priority,
             reminder: dbItem.reminder,
-            isRepeating: dbItem.isRepeating,
+            "isRepeating": dbItem.isRepeating,
           };
           const res = await supabase.from('tasks').upsert(payload);
           error = res.error;
         } else if (table === 'lead_magnets') {
-          const payload: Tables['lead_magnets']['Insert'] = {
+          const payload = {
             ...basePayload,
             description: dbItem.description,
-            assetUrl: dbItem.assetUrl,
-            assetType: dbItem.assetType,
+            "assetUrl": dbItem.assetUrl,
+            "assetType": dbItem.assetType,
           };
           const res = await supabase.from('lead_magnets').upsert(payload);
           error = res.error;
         } else {
-          const payload: Tables['content_items']['Insert'] = {
+          const payload = {
             ...basePayload,
-            projectId: dbItem.projectId,
+            "projectId": dbItem.projectId,
             body: (dbItem.body as unknown) as Json,
             cta: dbItem.cta,
-            scheduledFor: dbItem.scheduledFor,
+            "scheduledFor": dbItem.scheduledFor,
           };
           const res = await supabase.from('content_items').upsert(payload);
           error = res.error;
@@ -128,11 +139,64 @@ export class SyncEngine {
         if (!error) {
           await db.content.update(item.id, { syncStatus: 'synced' });
         } else {
-          console.error("Failed to push", error);
+          console.error("Failed to push content", error);
         }
       }
+
+      // 2. Process Inventory Libraries
+      const pendingLibraries = await db.inventoryLibraries.where('syncStatus').anyOf(['pending', 'pending_delete']).toArray();
+      for (const lib of pendingLibraries) {
+        if (lib.syncStatus === 'pending_delete') {
+          const res = await supabase.from('inventory_libraries').delete().eq('id', lib.id);
+          if (!res.error) await db.inventoryLibraries.delete(lib.id);
+          continue;
+        }
+        
+        const payload = {
+          id: lib.id,
+          user_id: user.id,
+          "workspaceId": lib.workspaceId,
+          name: lib.name,
+          order: lib.order,
+          icon: lib.icon,
+          updated_at: lib.updatedAt || new Date().toISOString(),
+          created_at: lib.createdAt || new Date().toISOString()
+        };
+        const res = await supabase.from('inventory_libraries').upsert(payload);
+        if (!res.error) {
+          await db.inventoryLibraries.update(lib.id, { syncStatus: 'synced' });
+        }
+      }
+
+      // 3. Process Inventory Items
+      const pendingInvItems = await db.inventoryItems.where('syncStatus').anyOf(['pending', 'pending_delete']).toArray();
+      for (const item of pendingInvItems) {
+        if (item.syncStatus === 'pending_delete') {
+          const res = await supabase.from('inventory').delete().eq('id', item.id);
+          if (!res.error) await db.inventoryItems.delete(item.id);
+          continue;
+        }
+        
+        const payload = {
+          id: item.id,
+          user_id: user.id,
+          "workspaceId": item.workspaceId,
+          "libraryId": item.libraryId,
+          text: item.text,
+          order: item.order,
+          updated_at: item.updatedAt || new Date().toISOString(),
+          created_at: item.createdAt || new Date().toISOString()
+        };
+        const res = await supabase.from('inventory').upsert(payload);
+        if (!res.error) {
+          await db.inventoryItems.update(item.id, { syncStatus: 'synced' });
+        }
+      }
+
     } catch (e) {
       console.error("Push error", e);
+    } finally {
+      this.isSyncing = false;
     }
   }
 
@@ -171,13 +235,7 @@ export class SyncEngine {
       } else if (table === 'inventory') {
         await db.inventoryItems.delete(oldId);
       } else {
-        const local = await db.content.get(oldId);
-        // Local data always wins against deletion if it has pending changes
-        if (local && local.syncStatus === 'pending') {
-          console.warn("Conflict detected for deletion of", oldId, "Keeping local changes.");
-        } else {
-          await db.content.delete(oldId);
-        }
+        await db.content.delete(oldId);
       }
     } else {
       await this.mergeRemoteItem(payload.table as string, payload.new as Record<string, unknown>);
@@ -187,44 +245,62 @@ export class SyncEngine {
 
   static async mergeRemoteItem(table: keyof Tables | string, remote: Record<string, unknown>) {
     const remoteId = remote.id as string;
+    const remoteUpdatedAt = remote.updated_at as string || new Date().toISOString();
     
     if (table === 'workspaces') {
-      const localWorkspace = await db.workspaces.get(remoteId);
-      if (!localWorkspace) {
+      const local = await db.workspaces.get(remoteId);
+      if (!local || new Date(remoteUpdatedAt) > new Date(local.updatedAt)) {
         await db.workspaces.put({
           id: remoteId,
           name: remote.name as string,
           isPersonal: remote.isPersonal as boolean,
           createdAt: remote.created_at as string || new Date().toISOString(),
-          updatedAt: remote.updated_at as string || new Date().toISOString()
+          updatedAt: remoteUpdatedAt,
+          syncStatus: 'synced'
         });
       }
       return;
     }
 
     if (table === 'inventory_libraries') {
-      await db.inventoryLibraries.put({
-        id: remoteId,
-        workspaceId: remote.workspaceId as string,
-        name: remote.name as string,
-        order: remote.order as number,
-        icon: remote.icon as string
-      });
+      const local = await db.inventoryLibraries.get(remoteId);
+      if (!local || new Date(remoteUpdatedAt) > new Date(local.updatedAt || 0)) {
+        await db.inventoryLibraries.put({
+          id: remoteId,
+          workspaceId: remote.workspaceId as string,
+          name: remote.name as string,
+          order: remote.order as number,
+          icon: remote.icon as string,
+          createdAt: remote.created_at as string || new Date().toISOString(),
+          updatedAt: remoteUpdatedAt,
+          syncStatus: 'synced'
+        });
+      }
       return;
     }
 
     if (table === 'inventory') {
-      await db.inventoryItems.put({
-        id: remoteId,
-        workspaceId: remote.workspaceId as string,
-        libraryId: remote.libraryId as string,
-        text: remote.text as string,
-        order: remote.order as number
-      });
+      const local = await db.inventoryItems.get(remoteId);
+      if (!local || new Date(remoteUpdatedAt) > new Date(local.updatedAt || 0)) {
+        await db.inventoryItems.put({
+          id: remoteId,
+          workspaceId: remote.workspaceId as string,
+          libraryId: remote.libraryId as string,
+          text: remote.text as string,
+          order: remote.order as number,
+          createdAt: remote.created_at as string || new Date().toISOString(),
+          updatedAt: remoteUpdatedAt,
+          syncStatus: 'synced'
+        });
+      }
       return;
     }
 
     const local = await db.content.get(remoteId);
+    if (local && new Date(local.updatedAt || 0) >= new Date(remoteUpdatedAt) && local.syncStatus !== 'synced') {
+      // Local is newer or equal and pending - keep local
+      return;
+    }
     
     let type: UniversalContent['type'] = 'DRAFT';
     if (table === 'projects') type = 'PROJECT';
@@ -244,6 +320,8 @@ export class SyncEngine {
       isTrashed: (remote.isTrashed as boolean) || false,
       syncStatus: 'synced',
       scheduledFor: null,
+      createdAt: remote.created_at as string || new Date().toISOString(),
+      updatedAt: remoteUpdatedAt,
     };
 
     if (table === 'projects') {
@@ -266,16 +344,6 @@ export class SyncEngine {
       mapped.scheduledFor = remote.scheduledFor as string;
     }
 
-    if (!local) {
-      await db.content.put(mapped);
-    } else if (local.syncStatus === 'synced') {
-      // Local is clean, remote wins
-      await db.content.put(mapped);
-    } else {
-      // CONFLICT: local is pending, remote also changed!
-      // In a real app we'd trigger a conflict UI. For now, keep local (since user just edited it).
-      // A more complex resolution could be presented via a modal using a global state.
-      console.warn("Conflict detected for", remoteId, "Keeping local changes.");
-    }
+    await db.content.put(mapped);
   }
 }

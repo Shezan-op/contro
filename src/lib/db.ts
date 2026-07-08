@@ -7,6 +7,8 @@ export interface Workspace {
   isPersonal: boolean;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
+  syncStatus?: 'synced' | 'pending' | 'pending_delete' | 'error';
 }
 
 // 2. Additional Models (Settings, Notifications, Reminders)
@@ -16,6 +18,10 @@ export interface Setting {
   theme: 'light' | 'dark' | 'system';
   offlineMode: boolean;
   syncEnabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string;
+  syncStatus?: 'synced' | 'pending' | 'pending_delete' | 'error';
 }
 
 export interface Notification {
@@ -34,6 +40,10 @@ export interface InventoryLibrary {
   name: string;
   order: number;
   icon?: string; // For future use
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string;
+  syncStatus?: 'synced' | 'pending' | 'pending_delete' | 'error';
 }
 
 export interface InventoryItem {
@@ -44,6 +54,10 @@ export interface InventoryItem {
   title?: string;
   url?: string;
   order: number;
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string;
+  syncStatus?: 'synced' | 'pending' | 'pending_delete' | 'error';
 }
 
 // 4. Universal Content Model
@@ -65,10 +79,12 @@ export interface UniversalContent {
   status: ContentStatus;
   scheduledFor: string | null; // ISO Date string
   createdAt?: string; // ISO Date string
+  updatedAt?: string;
+  deletedAt?: string;
   isStarred: boolean;
   isArchived: boolean;
   isTrashed: boolean;
-  syncStatus: 'synced' | 'pending' | 'error';
+  syncStatus: 'synced' | 'pending' | 'pending_delete' | 'error';
   
   // Extended fields stored as JSON
   description?: string; // For projects
@@ -96,13 +112,13 @@ const db = new Dexie('ControDB') as Dexie & {
 };
 
 // Schema declaration
-db.version(4).stores({
-  workspaces: 'id',
-  settings: 'id, workspaceId',
+db.version(5).stores({
+  workspaces: 'id, syncStatus',
+  settings: 'id, workspaceId, syncStatus',
   notifications: 'id, workspaceId, isRead',
-  content: 'id, workspaceId, type, title, projectId, *contentPillars, platform, status, scheduledFor, isStarred, isArchived, isTrashed, syncStatus',
-  inventoryLibraries: 'id, workspaceId, order',
-  inventoryItems: 'id, workspaceId, libraryId, order'
+  content: 'id, workspaceId, type, title, projectId, *contentPillars, platform, status, scheduledFor, isStarred, isArchived, isTrashed, syncStatus, deletedAt',
+  inventoryLibraries: 'id, workspaceId, order, syncStatus',
+  inventoryItems: 'id, workspaceId, libraryId, order, syncStatus'
 });
 
 export { db };

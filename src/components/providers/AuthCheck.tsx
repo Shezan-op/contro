@@ -28,6 +28,26 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error || !session) {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+           import('@/lib/db').then(async ({ db }) => {
+             const workspaces = await db.workspaces.toArray();
+             if (workspaces.length > 0) {
+               console.warn('Offline and session expired, but local data exists. Allowing offline access.');
+               setIsAuthenticated(true);
+               const store = useAppStore.getState();
+               if (store.isLoading && !store.workspaceId) {
+                 await loadInitialData();
+               }
+               setIsChecking(false);
+               return;
+             }
+             setIsAuthenticated(false);
+             setIsChecking(false);
+             router.push('/login');
+           });
+           return;
+        }
+
         setIsAuthenticated(false);
         setIsChecking(false);
         router.push('/login');

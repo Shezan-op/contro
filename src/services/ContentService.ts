@@ -20,6 +20,7 @@ export class ContentService {
       syncStatus: 'pending',
       projectId: partial.projectId,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       ...partial
     };
 
@@ -31,6 +32,7 @@ export class ContentService {
   static async update(id: string, updates: Partial<UniversalContent>) {
     await db.content.update(id, {
       ...updates,
+      updatedAt: new Date().toISOString(),
       syncStatus: 'pending' // Mark for sync when changed
     });
     useAppStore.getState().refreshData();
@@ -73,6 +75,7 @@ export class ContentService {
       scheduledFor: null,
       syncStatus: 'pending',
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     
     await db.content.add(duplicated);
@@ -81,12 +84,12 @@ export class ContentService {
   }
 
   static async archive(id: string) {
-    await db.content.update(id, { isArchived: true, syncStatus: 'pending' });
+    await db.content.update(id, { isArchived: true, syncStatus: 'pending', updatedAt: new Date().toISOString() });
     useAppStore.getState().refreshData();
   }
 
   static async restore(id: string) {
-    await db.content.update(id, { isArchived: false, isTrashed: false, syncStatus: 'pending' });
+    await db.content.update(id, { isArchived: false, isTrashed: false, syncStatus: 'pending', updatedAt: new Date().toISOString() });
     useAppStore.getState().refreshData();
   }
 
@@ -104,12 +107,17 @@ export class ContentService {
   }
 
   static async moveToTrash(id: string) {
-    await db.content.update(id, { isTrashed: true, syncStatus: 'pending' });
+    await db.content.update(id, { isTrashed: true, syncStatus: 'pending', updatedAt: new Date().toISOString() });
     useAppStore.getState().refreshData();
   }
 
   static async deletePermanently(id: string) {
-    await db.content.delete(id);
+    // Implement tombstone deletion
+    await db.content.update(id, { 
+      syncStatus: 'pending_delete',
+      deletedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
     useAppStore.getState().refreshData();
   }
 }

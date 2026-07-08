@@ -3,6 +3,8 @@ import { ArrowLeft, Info, Copy, Trash2, RotateCcw } from "lucide-react";
 import { UniversalContent } from "@/lib/db";
 
 interface WriterHeaderProps {
+  document?: Partial<UniversalContent>;
+  isOffline?: boolean;
   saveState: "Unsaved" | "Saving" | "Saved" | "Sync Pending";
   showMeta: boolean;
   setShowMeta: (show: boolean) => void;

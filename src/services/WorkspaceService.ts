@@ -32,8 +32,9 @@ export class WorkspaceService {
           id: cloudWorkspace.id,
           name: cloudWorkspace.name,
           isPersonal: cloudWorkspace.isPersonal,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: cloudWorkspace.created_at || new Date().toISOString(),
+          updatedAt: cloudWorkspace.updated_at || new Date().toISOString(),
+          syncStatus: 'synced',
         };
         await db.workspaces.add(newLocalWorkspace);
         return newLocalWorkspace;
@@ -47,6 +48,7 @@ export class WorkspaceService {
       isPersonal: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      syncStatus: 'synced',
     };
 
     await db.workspaces.add(newWorkspace);
