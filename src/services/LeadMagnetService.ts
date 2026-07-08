@@ -57,7 +57,7 @@ export class LeadMagnetService {
     const supabase = createClient();
     useAppStore.getState().setLoadingState('Saving...');
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       updated_at: new Date().toISOString()
     };
 
@@ -128,7 +128,7 @@ export class LeadMagnetService {
     if (error) throw error;
   }
 
-  private static mapToUniversal(remote: any): UniversalContent {
+  private static mapToUniversal(remote: Record<string, unknown>): UniversalContent {
     return {
       id: remote.id,
       workspaceId: remote.workspaceId,

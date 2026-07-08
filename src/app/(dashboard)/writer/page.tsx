@@ -224,7 +224,7 @@ function WriterContent({ draftId, initialDate, initialProjectId }: { draftId?: s
       setDocument(prev => ({ ...prev, scheduledFor: initialDate, status: 'scheduled' }));
       setSaveTo('calendar');
     } else if (initialProjectId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setDocument(prev => ({ ...prev, projectId: initialProjectId }));
       setSaveTo('project');
     }
