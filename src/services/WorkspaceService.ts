@@ -9,7 +9,8 @@ export class WorkspaceService {
    * If it doesn't exist in Supabase, it creates one automatically.
    */
   static async getDefaultWorkspace(): Promise<Workspace> {
-    const workspaces = await db.workspaces.toArray();
+    const allWorkspaces = await db.workspaces.toArray();
+    const workspaces = allWorkspaces.filter(w => !w.deletedAt);
     
     if (workspaces.length > 0) {
       return workspaces[0]; // For now, just return the first workspace

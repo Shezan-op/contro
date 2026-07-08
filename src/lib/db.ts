@@ -8,7 +8,7 @@ export interface Workspace {
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;
-  syncStatus?: 'synced' | 'pending' | 'pending_delete' | 'error';
+  syncStatus?: 'synced' | 'pending' | 'pending_delete' | 'error' | 'conflict';
 }
 
 // 2. Additional Models (Settings, Notifications, Reminders)
@@ -21,7 +21,7 @@ export interface Setting {
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string;
-  syncStatus?: 'synced' | 'pending' | 'pending_delete' | 'error';
+  syncStatus?: 'synced' | 'pending' | 'pending_delete' | 'error' | 'conflict';
 }
 
 export interface Notification {
@@ -43,7 +43,7 @@ export interface InventoryLibrary {
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string;
-  syncStatus?: 'synced' | 'pending' | 'pending_delete' | 'error';
+  syncStatus?: 'synced' | 'pending' | 'pending_delete' | 'error' | 'conflict';
 }
 
 export interface InventoryItem {
@@ -57,7 +57,7 @@ export interface InventoryItem {
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string;
-  syncStatus?: 'synced' | 'pending' | 'pending_delete' | 'error';
+  syncStatus?: 'synced' | 'pending' | 'pending_delete' | 'error' | 'conflict';
 }
 
 // 4. Universal Content Model
@@ -84,7 +84,7 @@ export interface UniversalContent {
   isStarred: boolean;
   isArchived: boolean;
   isTrashed: boolean;
-  syncStatus: 'synced' | 'pending' | 'pending_delete' | 'error';
+  syncStatus: 'synced' | 'pending' | 'pending_delete' | 'error' | 'conflict';
   
   // Extended fields stored as JSON
   description?: string; // For projects

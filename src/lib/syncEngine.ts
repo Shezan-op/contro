@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/client';
 import { db, UniversalContent } from '@/lib/db';
 import { useAppStore } from '@/store/useAppStore';
 import type { Database, Json } from '@/lib/database.types';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 const supabase = createClient();
 
@@ -9,32 +10,42 @@ type Tables = Database['public']['Tables'];
 
 export class SyncEngine {
   private static isSyncing = false;
+  private static activeChannel: RealtimeChannel | null = null;
 
   static async startSync() {
     if (typeof window === 'undefined') return;
     
-    // Initial Push of pending local changes
+    useAppStore.getState().setSyncState('syncing');
+
+    // Order: 1. Pull latest metadata & merge (handling conflict detection), 2. Push safe changes
+    await this.pullAllChanges();
     await this.pushPendingChanges();
 
-    // Initial Pull
-    await this.pullAllChanges();
+    useAppStore.getState().setSyncState('synced');
 
-    // Setup Realtime Subscriptions
-    supabase.channel('custom-all-channel')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public' },
-        (payload) => {
-          this.handleRemoteChange(payload);
-        }
-      )
-      .subscribe();
+    // Setup Realtime Subscriptions without leaking
+    if (!this.activeChannel) {
+      this.activeChannel = supabase.channel('custom-all-channel');
+      this.activeChannel
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public' },
+          async (payload) => {
+            useAppStore.getState().setSyncState('syncing');
+            await this.handleRemoteChange(payload);
+            useAppStore.getState().setSyncState('synced');
+          }
+        )
+        .subscribe();
+    }
       
     // Handle reconnects
-    window.addEventListener('online', () => {
+    window.addEventListener('online', async () => {
       useAppStore.getState().setOfflineStatus(false);
-      this.pushPendingChanges();
-      this.pullAllChanges();
+      useAppStore.getState().setSyncState('syncing');
+      await this.pullAllChanges();
+      await this.pushPendingChanges();
+      useAppStore.getState().setSyncState('synced');
     });
 
     window.addEventListener('offline', () => {
@@ -42,9 +53,12 @@ export class SyncEngine {
     });
     
     // Interval for safety
-    setInterval(() => {
-      if (navigator.onLine) {
-        this.pushPendingChanges();
+    setInterval(async () => {
+      if (navigator.onLine && !this.isSyncing) {
+        useAppStore.getState().setSyncState('syncing');
+        await this.pullAllChanges();
+        await this.pushPendingChanges();
+        useAppStore.getState().setSyncState('synced');
       }
     }, 15000); // 15 seconds
   }
@@ -60,152 +74,12 @@ export class SyncEngine {
     }
   }
 
-  static async pushPendingChanges() {
-    if (this.isSyncing) return;
-    this.isSyncing = true;
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // 1. Process Content Items
-      const pendingContent = await db.content.where('syncStatus').anyOf(['pending', 'pending_delete']).toArray();
-      
-      for (const item of pendingContent) {
-        const table = this.getTableName(item.type);
-        if (item.syncStatus === 'pending_delete') {
-          const res = await supabase.from(table).delete().eq('id', item.id);
-          if (!res.error) await db.content.delete(item.id);
-          continue;
-        }
-
-        const { ...dbItem } = item;
-        const basePayload = {
-          id: dbItem.id,
-          user_id: user.id,
-          "workspaceId": dbItem.workspaceId,
-          title: dbItem.title,
-          status: dbItem.status,
-          platform: dbItem.platform,
-          "contentPillars": dbItem.contentPillars,
-          "isStarred": dbItem.isStarred,
-          "isArchived": dbItem.isArchived,
-          "isTrashed": dbItem.isTrashed,
-          updated_at: dbItem.updatedAt || new Date().toISOString(),
-          created_at: dbItem.createdAt || new Date().toISOString()
-        };
-
-        let error = null;
-
-        if (table === 'projects') {
-          const payload = {
-            ...basePayload,
-            description: dbItem.description,
-          };
-          const res = await supabase.from('projects').upsert(payload);
-          error = res.error;
-        } else if (table === 'tasks') {
-          const payload = {
-            ...basePayload,
-            "projectId": dbItem.projectId,
-            "isCompleted": dbItem.isCompleted,
-            "dueDate": dbItem.dueDate,
-            priority: dbItem.priority,
-            reminder: dbItem.reminder,
-            "isRepeating": dbItem.isRepeating,
-          };
-          const res = await supabase.from('tasks').upsert(payload);
-          error = res.error;
-        } else if (table === 'lead_magnets') {
-          const payload = {
-            ...basePayload,
-            description: dbItem.description,
-            "assetUrl": dbItem.assetUrl,
-            "assetType": dbItem.assetType,
-          };
-          const res = await supabase.from('lead_magnets').upsert(payload);
-          error = res.error;
-        } else {
-          const payload = {
-            ...basePayload,
-            "projectId": dbItem.projectId,
-            body: (dbItem.body as unknown) as Json,
-            cta: dbItem.cta,
-            "scheduledFor": dbItem.scheduledFor,
-          };
-          const res = await supabase.from('content_items').upsert(payload);
-          error = res.error;
-        }
-        
-        if (!error) {
-          await db.content.update(item.id, { syncStatus: 'synced' });
-        } else {
-          console.error("Failed to push content", error);
-        }
-      }
-
-      // 2. Process Inventory Libraries
-      const pendingLibraries = await db.inventoryLibraries.where('syncStatus').anyOf(['pending', 'pending_delete']).toArray();
-      for (const lib of pendingLibraries) {
-        if (lib.syncStatus === 'pending_delete') {
-          const res = await supabase.from('inventory_libraries').delete().eq('id', lib.id);
-          if (!res.error) await db.inventoryLibraries.delete(lib.id);
-          continue;
-        }
-        
-        const payload = {
-          id: lib.id,
-          user_id: user.id,
-          "workspaceId": lib.workspaceId,
-          name: lib.name,
-          order: lib.order,
-          icon: lib.icon,
-          updated_at: lib.updatedAt || new Date().toISOString(),
-          created_at: lib.createdAt || new Date().toISOString()
-        };
-        const res = await supabase.from('inventory_libraries').upsert(payload);
-        if (!res.error) {
-          await db.inventoryLibraries.update(lib.id, { syncStatus: 'synced' });
-        }
-      }
-
-      // 3. Process Inventory Items
-      const pendingInvItems = await db.inventoryItems.where('syncStatus').anyOf(['pending', 'pending_delete']).toArray();
-      for (const item of pendingInvItems) {
-        if (item.syncStatus === 'pending_delete') {
-          const res = await supabase.from('inventory').delete().eq('id', item.id);
-          if (!res.error) await db.inventoryItems.delete(item.id);
-          continue;
-        }
-        
-        const payload = {
-          id: item.id,
-          user_id: user.id,
-          "workspaceId": item.workspaceId,
-          "libraryId": item.libraryId,
-          text: item.text,
-          order: item.order,
-          updated_at: item.updatedAt || new Date().toISOString(),
-          created_at: item.createdAt || new Date().toISOString()
-        };
-        const res = await supabase.from('inventory').upsert(payload);
-        if (!res.error) {
-          await db.inventoryItems.update(item.id, { syncStatus: 'synced' });
-        }
-      }
-
-    } catch (e) {
-      console.error("Push error", e);
-    } finally {
-      this.isSyncing = false;
-    }
-  }
-
   static async pullAllChanges() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const tables: (keyof Tables)[] = ['workspaces', 'inventory_libraries', 'inventory', 'projects', 'content_items', 'tasks', 'lead_magnets'];
+      const tables: (keyof Tables)[] = ['workspaces', 'inventory_libraries', 'inventory', 'projects', 'content_items', 'tasks', 'lead_magnets', 'user_settings'];
       
       for (const table of tables) {
         const { data, error } = await supabase.from(table).select('*');
@@ -219,10 +93,160 @@ export class SyncEngine {
       useAppStore.getState().refreshData();
     } catch (e) {
       console.error("Pull error", e);
+      useAppStore.getState().setSyncState('failed');
+    }
+  }
+
+  static async pushPendingChanges() {
+    if (this.isSyncing) return;
+    this.isSyncing = true;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Note: Because we pulled first, any local pending item where the remote was newer
+      // has already been marked as 'conflict' by mergeRemoteItem. 
+      // Thus, we only push rows that are strictly 'pending' and safe to overwrite the cloud.
+
+      // 1. Process Workspaces
+      const pendingWorkspaces = await db.workspaces.where('syncStatus').equals('pending').toArray();
+      for (const item of pendingWorkspaces) {
+        const res = await supabase.from('workspaces').upsert({
+          id: item.id,
+          user_id: user.id,
+          name: item.name,
+          "isPersonal": item.isPersonal,
+          updated_at: item.updatedAt,
+          created_at: item.createdAt,
+          deleted_at: item.deletedAt || null
+        });
+        if (!res.error) await db.workspaces.update(item.id, { syncStatus: 'synced' });
+      }
+
+      // 2. Process Settings
+      const pendingSettings = await db.settings.where('syncStatus').equals('pending').toArray();
+      for (const item of pendingSettings) {
+        const res = await supabase.from('user_settings').upsert({
+          id: item.id,
+          user_id: user.id,
+          "workspaceId": item.workspaceId,
+          theme: item.theme,
+          "offlineMode": item.offlineMode,
+          "syncEnabled": item.syncEnabled,
+          updated_at: item.updatedAt,
+          created_at: item.createdAt,
+          deleted_at: item.deletedAt || null
+        });
+        if (!res.error) await db.settings.update(item.id, { syncStatus: 'synced' });
+      }
+
+      // 3. Process Content Items
+      const pendingContent = await db.content.where('syncStatus').equals('pending').toArray();
+      for (const item of pendingContent) {
+        const table = this.getTableName(item.type);
+        const { ...dbItem } = item;
+        const basePayload = {
+          id: dbItem.id,
+          user_id: user.id,
+          "workspaceId": dbItem.workspaceId,
+          title: dbItem.title,
+          status: dbItem.status,
+          platform: dbItem.platform,
+          "contentPillars": dbItem.contentPillars,
+          "isStarred": dbItem.isStarred,
+          "isArchived": dbItem.isArchived,
+          "isTrashed": dbItem.isTrashed,
+          updated_at: dbItem.updatedAt,
+          created_at: dbItem.createdAt,
+          deleted_at: dbItem.deletedAt || null
+        };
+
+        let error = null;
+
+        if (table === 'projects') {
+          const res = await supabase.from('projects').upsert({ ...basePayload, description: dbItem.description });
+          error = res.error;
+        } else if (table === 'tasks') {
+          const res = await supabase.from('tasks').upsert({
+            ...basePayload,
+            "projectId": dbItem.projectId,
+            "isCompleted": dbItem.isCompleted,
+            "dueDate": dbItem.dueDate,
+            priority: dbItem.priority,
+            reminder: dbItem.reminder,
+            "isRepeating": dbItem.isRepeating,
+          });
+          error = res.error;
+        } else if (table === 'lead_magnets') {
+          const res = await supabase.from('lead_magnets').upsert({
+            ...basePayload,
+            description: dbItem.description,
+            "assetUrl": dbItem.assetUrl,
+            "assetType": dbItem.assetType,
+          });
+          error = res.error;
+        } else {
+          const res = await supabase.from('content_items').upsert({
+            ...basePayload,
+            "projectId": dbItem.projectId,
+            body: (dbItem.body as unknown) as Json,
+            cta: dbItem.cta,
+            "scheduledFor": dbItem.scheduledFor,
+          });
+          error = res.error;
+        }
+        
+        if (!error) {
+          await db.content.update(item.id, { syncStatus: 'synced' });
+        } else {
+          console.error("Failed to push content", error);
+        }
+      }
+
+      // 4. Process Inventory Libraries
+      const pendingLibraries = await db.inventoryLibraries.where('syncStatus').equals('pending').toArray();
+      for (const lib of pendingLibraries) {
+        const res = await supabase.from('inventory_libraries').upsert({
+          id: lib.id,
+          user_id: user.id,
+          "workspaceId": lib.workspaceId,
+          name: lib.name,
+          order: lib.order,
+          icon: lib.icon,
+          updated_at: lib.updatedAt,
+          created_at: lib.createdAt,
+          deleted_at: lib.deletedAt || null
+        });
+        if (!res.error) await db.inventoryLibraries.update(lib.id, { syncStatus: 'synced' });
+      }
+
+      // 5. Process Inventory Items
+      const pendingInvItems = await db.inventoryItems.where('syncStatus').equals('pending').toArray();
+      for (const item of pendingInvItems) {
+        const res = await supabase.from('inventory').upsert({
+          id: item.id,
+          user_id: user.id,
+          "workspaceId": item.workspaceId,
+          "libraryId": item.libraryId,
+          text: item.text,
+          order: item.order,
+          updated_at: item.updatedAt,
+          created_at: item.createdAt,
+          deleted_at: item.deletedAt || null
+        });
+        if (!res.error) await db.inventoryItems.update(item.id, { syncStatus: 'synced' });
+      }
+
+    } catch (e) {
+      console.error("Push error", e);
+      useAppStore.getState().setSyncState('failed');
+    } finally {
+      this.isSyncing = false;
     }
   }
 
   static async handleRemoteChange(payload: Record<string, unknown>) {
+    // With soft-delete, Supabase hard DELETEs should be extremely rare, but we handle them just in case.
     if (payload.eventType === 'DELETE') {
       const oldPayload = payload.old as Record<string, string>;
       const oldId = oldPayload.id;
@@ -234,6 +258,8 @@ export class SyncEngine {
         await db.inventoryLibraries.delete(oldId);
       } else if (table === 'inventory') {
         await db.inventoryItems.delete(oldId);
+      } else if (table === 'user_settings') {
+        await db.settings.delete(oldId);
       } else {
         await db.content.delete(oldId);
       }
@@ -247,24 +273,72 @@ export class SyncEngine {
     const remoteId = remote.id as string;
     const remoteUpdatedAt = remote.updated_at as string || new Date().toISOString();
     
+    // Conflict Detection Logic Function
+    const handleConflict = async <T extends { updatedAt?: string; syncStatus?: string }>(local: T | undefined): Promise<boolean> => {
+      if (!local) return false; // Safe to merge
+      
+      if (local.syncStatus === 'pending') {
+        if (new Date(remoteUpdatedAt) > new Date(local.updatedAt || 0)) {
+          // Cloud has newer data than our offline pending changes. We are in a conflict.
+          // Rule: mark as conflict, preserve local data, do NOT overwrite local yet. 
+          // Future UI will resolve.
+          return true;
+        } else {
+          // Local is newer. Keep local pending. Ignore cloud pull.
+          return true;
+        }
+      }
+      // If local is synced, it's safe to overwrite if remote is newer or equal
+      return new Date(remoteUpdatedAt) < new Date(local.updatedAt || 0);
+    };
+
     if (table === 'workspaces') {
       const local = await db.workspaces.get(remoteId);
-      if (!local || new Date(remoteUpdatedAt) > new Date(local.updatedAt)) {
+      const isConflict = await handleConflict(local);
+      
+      if (!isConflict && (!local || new Date(remoteUpdatedAt) >= new Date(local.updatedAt))) {
         await db.workspaces.put({
           id: remoteId,
           name: remote.name as string,
           isPersonal: remote.isPersonal as boolean,
           createdAt: remote.created_at as string || new Date().toISOString(),
           updatedAt: remoteUpdatedAt,
+          deletedAt: remote.deleted_at as string | undefined,
           syncStatus: 'synced'
         });
+      } else if (local && local.syncStatus === 'pending' && new Date(remoteUpdatedAt) > new Date(local.updatedAt)) {
+        await db.workspaces.update(remoteId, { syncStatus: 'conflict' });
+      }
+      return;
+    }
+
+    if (table === 'user_settings') {
+      const local = await db.settings.get(remoteId);
+      const isConflict = await handleConflict(local);
+      
+      if (!isConflict && (!local || new Date(remoteUpdatedAt) >= new Date(local.updatedAt || 0))) {
+        await db.settings.put({
+          id: remoteId,
+          workspaceId: remote.workspaceId as string,
+          theme: (remote.theme as 'light'|'dark'|'system') || 'system',
+          offlineMode: remote.offlineMode as boolean,
+          syncEnabled: remote.syncEnabled as boolean,
+          createdAt: remote.created_at as string || new Date().toISOString(),
+          updatedAt: remoteUpdatedAt,
+          deletedAt: remote.deleted_at as string | undefined,
+          syncStatus: 'synced'
+        });
+      } else if (local && local.syncStatus === 'pending' && new Date(remoteUpdatedAt) > new Date(local.updatedAt || 0)) {
+        await db.settings.update(remoteId, { syncStatus: 'conflict' });
       }
       return;
     }
 
     if (table === 'inventory_libraries') {
       const local = await db.inventoryLibraries.get(remoteId);
-      if (!local || new Date(remoteUpdatedAt) > new Date(local.updatedAt || 0)) {
+      const isConflict = await handleConflict(local);
+      
+      if (!isConflict && (!local || new Date(remoteUpdatedAt) >= new Date(local.updatedAt || 0))) {
         await db.inventoryLibraries.put({
           id: remoteId,
           workspaceId: remote.workspaceId as string,
@@ -273,15 +347,20 @@ export class SyncEngine {
           icon: remote.icon as string,
           createdAt: remote.created_at as string || new Date().toISOString(),
           updatedAt: remoteUpdatedAt,
+          deletedAt: remote.deleted_at as string | undefined,
           syncStatus: 'synced'
         });
+      } else if (local && local.syncStatus === 'pending' && new Date(remoteUpdatedAt) > new Date(local.updatedAt || 0)) {
+        await db.inventoryLibraries.update(remoteId, { syncStatus: 'conflict' });
       }
       return;
     }
 
     if (table === 'inventory') {
       const local = await db.inventoryItems.get(remoteId);
-      if (!local || new Date(remoteUpdatedAt) > new Date(local.updatedAt || 0)) {
+      const isConflict = await handleConflict(local);
+      
+      if (!isConflict && (!local || new Date(remoteUpdatedAt) >= new Date(local.updatedAt || 0))) {
         await db.inventoryItems.put({
           id: remoteId,
           workspaceId: remote.workspaceId as string,
@@ -290,16 +369,27 @@ export class SyncEngine {
           order: remote.order as number,
           createdAt: remote.created_at as string || new Date().toISOString(),
           updatedAt: remoteUpdatedAt,
+          deletedAt: remote.deleted_at as string | undefined,
           syncStatus: 'synced'
         });
+      } else if (local && local.syncStatus === 'pending' && new Date(remoteUpdatedAt) > new Date(local.updatedAt || 0)) {
+        await db.inventoryItems.update(remoteId, { syncStatus: 'conflict' });
       }
       return;
     }
 
     const local = await db.content.get(remoteId);
-    if (local && new Date(local.updatedAt || 0) >= new Date(remoteUpdatedAt) && local.syncStatus !== 'synced') {
-      // Local is newer or equal and pending - keep local
+    const isConflict = await handleConflict(local);
+
+    if (isConflict) {
+      if (local && local.syncStatus === 'pending' && new Date(remoteUpdatedAt) > new Date(local.updatedAt || 0)) {
+        await db.content.update(remoteId, { syncStatus: 'conflict' });
+      }
       return;
+    }
+
+    if (local && new Date(remoteUpdatedAt) < new Date(local.updatedAt || 0)) {
+      return; // local is newer (but not pending, which is weird, but we respect local if newer)
     }
     
     let type: UniversalContent['type'] = 'DRAFT';
@@ -322,6 +412,7 @@ export class SyncEngine {
       scheduledFor: null,
       createdAt: remote.created_at as string || new Date().toISOString(),
       updatedAt: remoteUpdatedAt,
+      deletedAt: remote.deleted_at as string | undefined,
     };
 
     if (table === 'projects') {

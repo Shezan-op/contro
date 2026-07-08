@@ -46,7 +46,7 @@ export class ContentService {
     return await db.content
       .where('workspaceId')
       .equals(workspaceId)
-      .filter(c => !c.isTrashed)
+      .filter(c => !c.isTrashed && !c.deletedAt)
       .toArray();
   }
 
@@ -97,7 +97,7 @@ export class ContentService {
     return await db.content
       .where('workspaceId')
       .equals(workspaceId)
-      .filter(c => c.type === type && !c.isTrashed && !c.isArchived)
+      .filter(c => c.type === type && !c.isTrashed && !c.isArchived && !c.deletedAt)
       .reverse()
       .sortBy('createdAt'); // Changed from 'id' to fix random sorting
   }
@@ -114,7 +114,7 @@ export class ContentService {
   static async deletePermanently(id: string) {
     // Implement tombstone deletion
     await db.content.update(id, { 
-      syncStatus: 'pending_delete',
+      syncStatus: 'pending',
       deletedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });

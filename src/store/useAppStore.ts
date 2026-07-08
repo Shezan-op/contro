@@ -23,11 +23,13 @@ interface AppState {
   isLoading: boolean;
   theme: Theme;
   error: string | null;
+  syncState: 'syncing' | 'synced' | 'failed' | 'offline';
   
   loadInitialData: () => Promise<void>;
   refreshData: () => Promise<void>;
   setOfflineStatus: (status: boolean) => void;
   setTheme: (theme: Theme) => void;
+  setSyncState: (state: 'syncing' | 'synced' | 'failed' | 'offline') => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -43,6 +45,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLoading: true,
   theme: 'system',
   error: null,
+  syncState: 'synced',
   
   loadInitialData: async () => {
     set({ isLoading: true, error: null });
@@ -71,7 +74,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         db.content
           .where('workspaceId')
           .equals(workspaceId)
-          .filter(c => !c.isTrashed && !!c.scheduledFor)
+          .filter(c => !c.isTrashed && !!c.scheduledFor && !c.deletedAt)
           .toArray()
       ]);
       
@@ -115,7 +118,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         db.content
           .where('workspaceId')
           .equals(workspaceId)
-          .filter(c => !c.isTrashed && !!c.scheduledFor)
+          .filter(c => !c.isTrashed && !!c.scheduledFor && !c.deletedAt)
           .toArray()
       ]);
       
@@ -134,10 +137,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   setOfflineStatus: (status: boolean) => {
-    set({ isOffline: status });
+    set({ isOffline: status, syncState: status ? 'offline' : 'synced' });
   },
 
   setTheme: (theme: Theme) => {
     set({ theme });
+  },
+  
+  setSyncState: (state) => {
+    set({ syncState: state });
   }
 }));

@@ -32,7 +32,7 @@ export class InventoryService {
     return await db.inventoryLibraries
       .where('workspaceId')
       .equals(workspaceId)
-      .filter(l => l.syncStatus !== 'pending_delete')
+      .filter(l => !l.deletedAt)
       .sortBy('order');
   }
 
@@ -66,14 +66,14 @@ export class InventoryService {
     // Use tombstone deletion for sync
     await db.transaction('rw', db.inventoryLibraries, db.inventoryItems, async () => {
       await db.inventoryLibraries.update(id, {
-        syncStatus: 'pending_delete',
+        syncStatus: 'pending',
         deletedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
       const items = await db.inventoryItems.where('libraryId').equals(id).toArray();
       for (const item of items) {
         await db.inventoryItems.update(item.id, {
-          syncStatus: 'pending_delete',
+          syncStatus: 'pending',
           deletedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
@@ -99,7 +99,7 @@ export class InventoryService {
     return await db.inventoryItems
       .where('libraryId')
       .equals(libraryId)
-      .filter(i => i.syncStatus !== 'pending_delete')
+      .filter(i => !i.deletedAt)
       .sortBy('order');
   }
 
@@ -138,7 +138,7 @@ export class InventoryService {
 
   static async deleteItem(id: string): Promise<void> {
     await db.inventoryItems.update(id, {
-      syncStatus: 'pending_delete',
+      syncStatus: 'pending',
       deletedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
