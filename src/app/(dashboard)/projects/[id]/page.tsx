@@ -37,7 +37,7 @@ export default function ProjectDetailsPage() {
         setEditingTitle(proj.title);
         setEditingDesc(proj.description || "");
         
-        const projContents = await ProjectService.getContents(workspaceId, id);
+        const projContents = await ContentService.getByProject(workspaceId, id);
         setContents(projContents);
       }
       setIsLoading(false);
@@ -51,7 +51,7 @@ export default function ProjectDetailsPage() {
     const desc = editingDesc.trim();
     
     if (title !== project.title || desc !== project.description) {
-      await ProjectService.rename(project.id, title);
+      await ProjectService.update(project.id, { title });
       await ContentService.update(project.id, { description: desc });
       setProject({ ...project, title, description: desc });
       await refreshData();
@@ -61,7 +61,7 @@ export default function ProjectDetailsPage() {
 
   const handleDelete = async () => {
     if (project) {
-      await ProjectService.delete(project.id);
+      await ProjectService.deletePermanently(project.id);
       await refreshData();
       toast('Project deleted', 'success');
       router.push('/projects');

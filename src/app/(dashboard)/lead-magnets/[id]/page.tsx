@@ -130,7 +130,7 @@ export default function LeadMagnetDetailsPage() {
 
   const handleDelete = async () => {
     if (leadMagnet) {
-      await LeadMagnetService.delete(leadMagnet.id);
+      await LeadMagnetService.deletePermanently(leadMagnet.id);
       await refreshData();
       toast('Lead Magnet deleted', 'success');
       router.push('/lead-magnets');

@@ -50,7 +50,7 @@ export default function ProjectsPage() {
   const handleTogglePin = async (e: React.MouseEvent, id: string, isPinned: boolean) => {
     e.preventDefault();
     e.stopPropagation();
-    await ProjectService.togglePin(id, !isPinned);
+    await ProjectService.update(id, { isStarred: !isPinned });
     await refreshData();
   };
 
@@ -65,7 +65,7 @@ export default function ProjectsPage() {
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    await ProjectService.delete(id);
+    await ProjectService.deletePermanently(id);
     await refreshData();
     toast('Project moved to trash', 'success');
   };

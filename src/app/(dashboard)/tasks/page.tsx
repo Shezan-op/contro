@@ -48,12 +48,12 @@ export default function TasksPage() {
 
 
   const handleToggleCompletion = async (task: UniversalContent) => {
-    await TaskService.toggleCompletion(task.id, !task.isCompleted);
+    await TaskService.update(task.id, { isCompleted: !task.isCompleted });
     await refreshData();
   };
 
   const handleDelete = async (id: string) => {
-    await TaskService.delete(id);
+    await TaskService.deletePermanently(id);
     await refreshData();
     toast('Task deleted', 'success');
   };

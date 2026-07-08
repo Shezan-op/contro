@@ -6,7 +6,7 @@ import { TaskService } from '@/services/TaskService';
 import { WorkspaceService } from '@/services/WorkspaceService';
 import { InventoryService } from '@/services/InventoryService';
 import { LeadMagnetService } from '@/services/LeadMagnetService';
-import { db } from '@/lib/db';
+import { createClient } from '@/lib/supabase/client';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -19,17 +19,17 @@ interface AppState {
   inventoryCounts: Record<string, number>;
   leadMagnets: UniversalContent[];
   calendarItems: UniversalContent[];
-  isOffline: boolean;
+  
   isLoading: boolean;
+  loadingState: string | null; // e.g., 'Saving...', 'Saved', 'Failed'
   theme: Theme;
   error: string | null;
-  syncState: 'syncing' | 'synced' | 'failed' | 'offline';
   
   loadInitialData: () => Promise<void>;
   refreshData: () => Promise<void>;
-  setOfflineStatus: (status: boolean) => void;
   setTheme: (theme: Theme) => void;
-  setSyncState: (state: 'syncing' | 'synced' | 'failed' | 'offline') => void;
+  setLoadingState: (state: string | null) => void;
+  subscribeToRealtime: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -41,11 +41,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   inventoryCounts: {},
   leadMagnets: [],
   calendarItems: [],
-  isOffline: false,
+  
   isLoading: true,
+  loadingState: null,
   theme: 'system',
   error: null,
-  syncState: 'synced',
   
   loadInitialData: async () => {
     set({ isLoading: true, error: null });
@@ -53,44 +53,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       const workspace = await WorkspaceService.getDefaultWorkspace();
       const workspaceId = workspace.id;
 
-      // Initialize default inventory libraries if needed
       await InventoryService.initializeDefaults(workspaceId);
 
-      const [
-        projects,
-        tasks,
-        drafts,
-        inventoryLibraries,
-        inventoryCounts,
-        leadMagnets,
-        calendarItems
-      ] = await Promise.all([
-        ProjectService.getAll(workspaceId),
-        TaskService.getActive(workspaceId),
-        ContentService.getDrafts(workspaceId),
-        InventoryService.getLibraries(workspaceId),
-        InventoryService.getLibraryCounts(workspaceId),
-        LeadMagnetService.getAll(workspaceId),
-        db.content
-          .where('workspaceId')
-          .equals(workspaceId)
-          .filter(c => !c.isTrashed && !!c.scheduledFor && !c.deletedAt)
-          .toArray()
-      ]);
+      set({ workspaceId });
       
-      set({ 
-        workspaceId,
-        projects, 
-        drafts, 
-        tasks, 
-        inventoryLibraries,
-        inventoryCounts,
-        leadMagnets,
-        calendarItems,
-        isLoading: false 
-      });
+      await get().refreshData();
+      get().subscribeToRealtime();
+      
+      set({ isLoading: false });
     } catch (error) {
-      console.error("Failed to load local data", error);
+      console.error("Failed to load data", error);
       set({ isLoading: false, error: "Failed to load database. Please try reloading." });
     }
   },
@@ -100,6 +72,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       const workspaceId = get().workspaceId;
       if (!workspaceId) return;
 
+      const supabase = createClient();
+
       const [
         projects,
         tasks,
@@ -107,7 +81,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         inventoryLibraries,
         inventoryCounts,
         leadMagnets,
-        calendarItems
+        { data: rawCalendarItems }
       ] = await Promise.all([
         ProjectService.getAll(workspaceId),
         TaskService.getActive(workspaceId),
@@ -115,13 +89,33 @@ export const useAppStore = create<AppState>((set, get) => ({
         InventoryService.getLibraries(workspaceId),
         InventoryService.getLibraryCounts(workspaceId),
         LeadMagnetService.getAll(workspaceId),
-        db.content
-          .where('workspaceId')
-          .equals(workspaceId)
-          .filter(c => !c.isTrashed && !!c.scheduledFor && !c.deletedAt)
-          .toArray()
+        supabase.from('content_items')
+          .select('*')
+          .eq('workspaceId', workspaceId)
+          .is('deleted_at', null)
+          .eq('isTrashed', false)
+          .not('scheduledFor', 'is', null)
       ]);
       
+      const calendarItems = (rawCalendarItems || []).map(r => ({
+        id: r.id,
+        workspaceId: r.workspaceId,
+        type: 'DRAFT' as const,
+        title: r.title || '',
+        body: r.body,
+        cta: r.cta,
+        projectId: r.projectId,
+        contentPillars: r.contentPillars || [],
+        platform: r.platform || null,
+        status: r.status || 'draft',
+        scheduledFor: r.scheduledFor || null,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        isStarred: r.isStarred || false,
+        isArchived: r.isArchived || false,
+        isTrashed: r.isTrashed || false,
+      }));
+
       set({ 
         projects, 
         drafts, 
@@ -132,19 +126,37 @@ export const useAppStore = create<AppState>((set, get) => ({
         calendarItems
       });
     } catch (error) {
-      console.error("Failed to refresh local data", error);
+      console.error("Failed to refresh data", error);
     }
   },
   
-  setOfflineStatus: (status: boolean) => {
-    set({ isOffline: status, syncState: status ? 'offline' : 'synced' });
-  },
-
   setTheme: (theme: Theme) => {
     set({ theme });
   },
   
-  setSyncState: (state) => {
-    set({ syncState: state });
+  setLoadingState: (state) => {
+    set({ loadingState: state });
+  },
+
+  subscribeToRealtime: () => {
+    const supabase = createClient();
+    
+    // Unsubscribe from any existing channels first to avoid duplicates
+    supabase.removeAllChannels();
+
+    const channel = supabase.channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        (payload) => {
+          console.log('Realtime update received:', payload);
+          // Simple naive refresh on any database change.
+          // Since data sizes are MVP level, pulling fresh state maintains perfect sync.
+          get().refreshData();
+        }
+      )
+      .subscribe();
+      
+    // Store channel in case we need it, though supabase.removeAllChannels() handles cleanup.
   }
 }));

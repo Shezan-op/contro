@@ -26,7 +26,7 @@ export default function DashboardPage() {
 
   const handleTaskToggle = async (taskId: string, currentStatus: boolean) => {
     if (!workspaceId) return;
-    await TaskService.toggleCompletion(taskId, !currentStatus);
+    await TaskService.update(taskId, { isCompleted: !currentStatus });
     await refreshData();
   };
 

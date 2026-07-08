@@ -4,8 +4,7 @@ import { UniversalContent } from "@/lib/db";
 
 interface WriterHeaderProps {
   document?: Partial<UniversalContent>;
-  isOffline?: boolean;
-  saveState: "Unsaved" | "Saving" | "Saved" | "Sync Pending";
+  saveState: "Unsaved" | "Saving" | "Saved";
   showMeta: boolean;
   setShowMeta: (show: boolean) => void;
   handleCopy: () => void;
@@ -41,7 +40,7 @@ export function WriterHeader({
           onClick={onSave}
           className="flex items-center gap-1.5 text-sm font-medium text-[var(--text)] hover:text-[var(--muted)] transition-colors"
         >
-          {saveState === "Saving" ? "Saving..." : saveState === "Saved" ? "Saved" : saveState === "Sync Pending" ? "Sync Pending" : "Save"}
+          {saveState === "Saving" ? "Saving..." : saveState === "Saved" ? "Saved" : "Save"}
         </button>
 
         <button type="button" 

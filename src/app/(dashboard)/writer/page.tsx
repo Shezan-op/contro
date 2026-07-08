@@ -184,7 +184,7 @@ function WriterList() {
 function WriterContent({ draftId, initialDate, initialProjectId }: { draftId?: string | null; initialDate?: string | null; initialProjectId?: string | null }) {
   const router = useRouter();
   const { toast } = useToast();
-  const { isOffline, refreshData, projects, workspaceId } = useAppStore();
+  const { refreshData, projects, workspaceId } = useAppStore();
   const [document, setDocument] = useState<Partial<UniversalContent>>({
     id: uuidv4(),
     title: "",
@@ -197,7 +197,7 @@ function WriterContent({ draftId, initialDate, initialProjectId }: { draftId?: s
     projectId: undefined
   });
   const [showMeta, setShowMeta] = useState(false);
-  const [saveState, setSaveState] = useState<"Unsaved" | "Saving" | "Saved" | "Sync Pending">("Unsaved");
+  const [saveState, setSaveState] = useState<"Unsaved" | "Saving" | "Saved">("Unsaved");
   
   const [saveTo, setSaveTo] = useState<'independent' | 'project' | 'calendar'>('independent');
   const [pillarInput, setPillarInput] = useState("");
@@ -287,13 +287,13 @@ function WriterContent({ draftId, initialDate, initialProjectId }: { draftId?: s
           projectId: docToSave.projectId,
         });
       }
-      setSaveState(isOffline ? "Sync Pending" : "Saved");
+      setSaveState("Saved");
       refreshData();
     } catch (e) {
       console.error(e);
       setSaveState("Unsaved");
     }
-  }, [isOffline, refreshData, workspaceId, toast]);
+  }, [refreshData, workspaceId, toast]);
 
   const saveDocumentEvent = useEffectEvent(saveDocument);
 
@@ -391,7 +391,6 @@ function WriterContent({ draftId, initialDate, initialProjectId }: { draftId?: s
         
         <WriterHeader
           document={document}
-          isOffline={isOffline}
           saveState={saveState}
           showMeta={showMeta}
           setShowMeta={setShowMeta}

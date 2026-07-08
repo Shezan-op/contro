@@ -31,7 +31,7 @@ export default function LeadMagnetsPage() {
     if (!workspaceId || !newTitle.trim()) return;
     
     try {
-      const newLM = await LeadMagnetService.create(workspaceId, newTitle.trim(), newDesc.trim());
+      const newLM = await LeadMagnetService.create(workspaceId, newTitle.trim(), { description: newDesc.trim() });
       await refreshData();
       setNewTitle("");
       setNewDesc("");
@@ -46,7 +46,7 @@ export default function LeadMagnetsPage() {
 
   const handleDelete = async () => {
     if (deletingId) {
-      await LeadMagnetService.delete(deletingId);
+      await LeadMagnetService.deletePermanently(deletingId);
       await refreshData();
       setDeletingId(null);
       toast('Lead Magnet moved to trash', 'success');
