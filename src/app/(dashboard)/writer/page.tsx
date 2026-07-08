@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useState, useCallback, Suspense, useMemo } from "react";
-import { Plus, FolderOpen, Calendar as CalendarIcon, MoreVertical, FileText, Search } from "lucide-react";
+import { Plus, FolderOpen, Calendar as CalendarIcon, MoreVertical, FileText, Search, Copy, Trash2 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { Editor } from "@/components/features/Editor";
 import { UniversalContent, ContentStatus } from "@/lib/db";
@@ -28,8 +28,23 @@ import { SearchInput } from "@/components/ui/SearchInput";
 function WriterList() {
   const router = useRouter();
   const { drafts, projects } = useAppStore();
+  const { toast } = useToast();
   const [filter, setFilter] = useState<'all' | 'independent' | 'project' | 'calendar'>('all');
   const [searchQuery, setSearchQuery] = useState("");
+
+  const handleDuplicate = async (e: React.MouseEvent, draft: UniversalContent) => {
+    e.stopPropagation();
+    await ContentService.duplicate(draft.id);
+    toast('Draft duplicated', 'success');
+  };
+
+  const handleDelete = async (e: React.MouseEvent, draft: UniversalContent) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this draft?')) {
+      await ContentService.moveToTrash(draft.id);
+      toast('Draft deleted');
+    }
+  };
 
   const filteredDrafts = useMemo(() => {
     return drafts.filter(draft => {
@@ -76,7 +91,7 @@ function WriterList() {
           {["all", "independent", "project", "calendar"].map((mode) => (
             <button 
               key={mode}
-              onClick={() => setFilter(mode as any)}
+              onClick={() => setFilter(mode as "all" | "independent" | "project" | "calendar")}
               className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-md transition capitalize ${
                 filter === mode 
                   ? "bg-[var(--text)] text-[var(--background)] shadow-sm" 
@@ -114,7 +129,23 @@ function WriterList() {
                 onClick={() => router.push(`/writer?id=${draft.id}`)}
                 className="group flex flex-col p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl hover:border-[var(--text)] hover:shadow-sm transition-all cursor-pointer relative"
               >
-                <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-blue-500 transition-colors">
+                <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                  <button 
+                    onClick={(e) => handleDuplicate(e, draft)}
+                    className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] rounded-md text-[var(--muted)] hover:text-[var(--text)] border border-[var(--border)] shadow-sm"
+                    title="Duplicate"
+                  >
+                    <Copy size={14} />
+                  </button>
+                  <button 
+                    onClick={(e) => handleDelete(e, draft)}
+                    className="p-1.5 bg-[var(--background)] hover:bg-red-500/10 rounded-md text-[var(--muted)] hover:text-red-500 border border-[var(--border)] shadow-sm"
+                    title="Delete"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-blue-500 pr-16 transition-colors">
                   {draft.title || "Untitled Draft"}
                 </h3>
                 <p className="text-sm text-[var(--muted)] mt-2 line-clamp-2 min-h-[40px]">
@@ -150,7 +181,7 @@ function WriterList() {
   );
 }
 
-function WriterContent({ draftId }: { draftId?: string | null }) {
+function WriterContent({ draftId, initialDate, initialProjectId }: { draftId?: string | null; initialDate?: string | null; initialProjectId?: string | null }) {
   const router = useRouter();
   const { toast } = useToast();
   const { isOffline, refreshData, projects, workspaceId } = useAppStore();
@@ -168,7 +199,7 @@ function WriterContent({ draftId }: { draftId?: string | null }) {
   const [showMeta, setShowMeta] = useState(false);
   const [saveState, setSaveState] = useState<"Unsaved" | "Saving" | "Saved" | "Sync Pending">("Unsaved");
   
-  const [saveTo, setSaveTo] = useState<'project' | 'calendar'>('project');
+  const [saveTo, setSaveTo] = useState<'independent' | 'project' | 'calendar'>('independent');
   const [pillarInput, setPillarInput] = useState("");
   
   // Dialogs
@@ -181,23 +212,38 @@ function WriterContent({ draftId }: { draftId?: string | null }) {
           setDocument(existing);
           if (existing.scheduledFor) {
             setSaveTo('calendar');
+          } else if (existing.projectId) {
+            setSaveTo('project');
+          } else {
+            setSaveTo('independent');
           }
         }
       }).catch((error: unknown) => console.error("Failed to load draft", error));
+    } else if (initialDate) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDocument(prev => ({ ...prev, scheduledFor: initialDate, status: 'scheduled' }));
+      setSaveTo('calendar');
+    } else if (initialProjectId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDocument(prev => ({ ...prev, projectId: initialProjectId }));
+      setSaveTo('project');
     }
-  }, [draftId]);
+  }, [draftId, initialDate, initialProjectId]);
 
   const isEmpty = (doc: Partial<UniversalContent>) => {
     const hasTitle = doc.title && doc.title.trim().length > 0;
     const hasCta = doc.cta && doc.cta.trim().length > 0;
     
     // Check if body is just the empty default AST
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const bodyContent = doc.body as any;
     let hasBodyText = false;
     if (bodyContent && bodyContent.content) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       hasBodyText = bodyContent.content.some((node: any) => {
         if (node.type === 'paragraph' && (!node.content || node.content.length === 0)) return false;
         if (node.content && Array.isArray(node.content)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return node.content.some((child: any) => child.text && child.text.trim().length > 0);
         }
         return false;
@@ -208,7 +254,10 @@ function WriterContent({ draftId }: { draftId?: string | null }) {
   };
 
   const saveDocument = useCallback(async (docToSave: Partial<UniversalContent>, force: boolean = false) => {
-    if (!force && isEmpty(docToSave)) return;
+    if (isEmpty(docToSave)) {
+      if (force) toast('Write something before saving.', 'error');
+      return;
+    }
     
     setSaveState("Saving");
     try {
@@ -244,7 +293,7 @@ function WriterContent({ draftId }: { draftId?: string | null }) {
       console.error(e);
       setSaveState("Unsaved");
     }
-  }, [isOffline, refreshData, workspaceId]);
+  }, [isOffline, refreshData, workspaceId, toast]);
 
   const saveDocumentEvent = useEffectEvent(saveDocument);
 
@@ -445,11 +494,13 @@ export default function WriterPage() {
   const searchParams = useSearchParams();
   const draftId = searchParams.get('id');
   const isNew = searchParams.get('new') === 'true';
+  const initialDate = searchParams.get('date');
+  const initialProjectId = searchParams.get('projectId');
   const isEditorMode = !!draftId || isNew;
 
   return (
     <Suspense fallback={<div className="flex h-[100dvh] items-center justify-center bg-[var(--background)] text-[var(--muted)]">Loading...</div>}>
-      {isEditorMode ? <WriterContent draftId={draftId} /> : <WriterList />}
+      {isEditorMode ? <WriterContent draftId={draftId} initialDate={initialDate} initialProjectId={initialProjectId} /> : <WriterList />}
     </Suspense>
   );
 }

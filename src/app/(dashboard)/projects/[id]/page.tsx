@@ -68,12 +68,9 @@ export default function ProjectDetailsPage() {
     }
   };
 
-  const handleCreateContent = async () => {
-    if (!workspaceId || !project) return;
-    const newContent = await ContentService.create(workspaceId, 'DRAFT', { 
-      projectId: project.id 
-    });
-    router.push(`/writer?id=${newContent.id}`);
+  const handleCreateContent = () => {
+    if (!project) return;
+    router.push(`/writer?new=true&projectId=${project.id}`);
   };
 
   if (isLoading) {

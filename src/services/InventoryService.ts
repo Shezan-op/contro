@@ -133,7 +133,11 @@ export class InventoryService {
     const libMap = Object.fromEntries(libraries.map(l => [l.id, l.name]));
 
     return items.reduce<(InventoryItem & { libraryName: string })[]>((matches, item) => {
-      if (item.text.toLowerCase().includes(q)) {
+      const matchText = item.text?.toLowerCase().includes(q);
+      const matchTitle = item.title?.toLowerCase().includes(q);
+      const matchUrl = item.url?.toLowerCase().includes(q);
+      
+      if (matchText || matchTitle || matchUrl) {
         matches.push({ ...item, libraryName: libMap[item.libraryId] || 'Unknown' });
       }
       return matches;

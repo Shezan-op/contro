@@ -394,6 +394,20 @@ export default function TasksPage() {
           </div>
         )}
       </div>
+
+      {/* Floating + button for mobile */}
+      <button 
+        onClick={() => {
+          const input = document.querySelector('input[aria-label="New task title"]') as HTMLInputElement;
+          if (input) {
+            input.scrollIntoView({ behavior: 'smooth' });
+            setTimeout(() => input.focus(), 300);
+          }
+        }}
+        className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-[var(--text)] text-[var(--background)] rounded-full shadow-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform z-40"
+      >
+        <Plus size={24} />
+      </button>
     </div>
   );
 }

@@ -8,6 +8,8 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { InventoryService } from "@/services/InventoryService";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
+import { useEffect } from "react";
+import { InventoryItem } from "@/lib/db";
 
 export default function InventoryPage() {
   const { inventoryLibraries, inventoryCounts, workspaceId, refreshData } = useAppStore();
@@ -17,10 +19,26 @@ export default function InventoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [newLibraryName, setNewLibraryName] = useState("");
+  const [searchResults, setSearchResults] = useState<(InventoryItem & { libraryName: string })[]>([]);
 
   const filteredLibraries = inventoryLibraries.filter(lib => 
     lib.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  useEffect(() => {
+    const fetchResults = async () => {
+      if (!workspaceId || !searchQuery.trim()) {
+        setSearchResults([]);
+        return;
+      }
+      const results = await InventoryService.searchItems(workspaceId, searchQuery.trim());
+      setSearchResults(results);
+    };
+    
+    // Simple debounce
+    const timeout = setTimeout(fetchResults, 300);
+    return () => clearTimeout(timeout);
+  }, [searchQuery, workspaceId]);
 
   const handleCreateLibrary = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,6 +154,33 @@ export default function InventoryPage() {
               </p>
             </Link>
           ))}
+        </div>
+      )}
+      
+      {/* Global Search Results */}
+      {searchQuery.trim() && searchResults.length > 0 && (
+        <div className="mt-12 space-y-4 animate-fade-in">
+          <h2 className="text-lg font-medium border-b border-[var(--border)] pb-2">Matching Assets</h2>
+          <div className="flex flex-col gap-3">
+            {searchResults.map(item => (
+              <Link
+                key={item.id}
+                href={`/inventory/${item.libraryId}`}
+                className="group flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--text)] transition-all shadow-sm gap-3"
+              >
+                <div>
+                  <h3 className="font-medium text-[var(--text)]">{item.title || item.text || "Untitled Asset"}</h3>
+                  {item.url && (
+                    <p className="text-xs text-blue-500 mt-1 truncate max-w-sm">{item.url}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-xs font-medium text-[var(--muted)] bg-[var(--background)] border border-[var(--border)] px-2 py-1 rounded-md shrink-0">
+                  <FolderOpen size={12} />
+                  {item.libraryName}
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       )}
     </div>

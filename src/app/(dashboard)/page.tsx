@@ -90,78 +90,9 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Content Area */}
-        <div className="lg:col-span-2 space-y-8">
-          
-          {/* Calendar Section */}
-          <section className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-sm hover:border-[var(--text)]/20 transition-colors">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <CalendarIcon size={18} className="text-[var(--muted)]" />
-                This Week
-              </h2>
-              <Link href="/calendar" className="text-sm font-medium text-[var(--muted)] hover:text-[var(--text)] transition flex items-center gap-1">
-                View Month
-              </Link>
-            </div>
-            <div className="grid grid-cols-7 gap-2">
-              {weekDays.map((date) => {
-                const dayItems = scheduledItems.filter(item => item.scheduledFor && isSameDay(new Date(item.scheduledFor), date));
-                const isTodayDate = isToday(date);
-                return (
-                  <Link href="/calendar" key={date.toISOString()} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition group hover:border-[var(--text)] hover:shadow-sm ${isTodayDate ? 'border-[var(--text)] bg-[var(--background)] shadow-sm' : 'border-[var(--border)] bg-[var(--background)]'}`}>
-                    <span className={`text-xs uppercase tracking-wider ${isTodayDate ? 'text-[var(--text)] font-semibold' : 'text-[var(--muted)]'}`}>{format(date, 'EEE')}</span>
-                    <span className={`text-lg font-medium mt-1 ${isTodayDate ? 'text-[var(--text)]' : ''}`}>{format(date, 'd')}</span>
-                    <div className="flex gap-1 mt-3 h-1.5 min-h-[6px]">
-                      {dayItems.slice(0, 3).map((item) => (
-                        <div key={item.id} className={`w-1.5 h-1.5 rounded-full ${item.status === 'published' ? 'bg-green-500' : item.status === 'scheduled' ? 'bg-blue-500' : 'bg-[var(--muted)]'}`} />
-                      ))}
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Recent Independent Drafts */}
-          <section className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-sm hover:border-[var(--text)]/20 transition-colors">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <PenLine size={18} className="text-[var(--muted)]" />
-                Recent Drafts
-              </h2>
-              <Link href="/writer" className="text-sm font-medium text-[var(--muted)] hover:text-[var(--text)] transition flex items-center gap-1">
-                View All
-              </Link>
-            </div>
-            
-            {(() => {
-              const recentDrafts = drafts.filter(d => !d.projectId && !d.scheduledFor).slice(0, 4);
-              if (recentDrafts.length === 0) {
-                return (
-                  <div className="py-8 text-center border border-[var(--border)] border-dashed rounded-xl bg-[var(--background)]">
-                    <p className="text-[var(--muted)] text-sm">No independent drafts found.</p>
-                  </div>
-                );
-              }
-              return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {recentDrafts.map(draft => (
-                    <Link href={`/writer?id=${draft.id}`} key={draft.id} className="block p-4 bg-[var(--background)] border border-[var(--border)] rounded-xl hover:border-[var(--text)] transition group active:scale-[0.98]">
-                      <h3 className="font-medium group-hover:text-blue-500 transition-colors line-clamp-1">{draft.title || "Untitled Draft"}</h3>
-                      <p className="text-xs text-[var(--muted)] mt-2 line-clamp-2">{draft.cta || "No CTA specified..."}</p>
-                    </Link>
-                  ))}
-                </div>
-              );
-            })()}
-          </section>
-
-        </div>
-
-        {/* Right Sidebar Area */}
-        <div className="space-y-8">
+      <div className="flex flex-col lg:grid lg:grid-cols-3 gap-8">
+        {/* Right Sidebar Area (Tasks & Projects) - First on mobile */}
+        <div className="order-1 lg:order-2 lg:col-start-3 space-y-8">
           
           {/* Top Tasks */}
           <section className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
@@ -226,6 +157,79 @@ export default function DashboardPage() {
               </div>
             )}
           </section>
+
+        </div>
+
+        {/* Main Content Area */}
+        <div className="order-2 lg:order-1 lg:col-span-2 flex flex-col gap-8">
+          
+          {/* Recent Independent Drafts - High priority on mobile */}
+          <div className="order-1 lg:order-2">
+            <section className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-sm hover:border-[var(--text)]/20 transition-colors">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <PenLine size={18} className="text-[var(--muted)]" />
+                  Recent Drafts
+                </h2>
+                <Link href="/writer" className="text-sm font-medium text-[var(--muted)] hover:text-[var(--text)] transition flex items-center gap-1">
+                  View All
+                </Link>
+              </div>
+              
+              {(() => {
+                const recentDrafts = drafts.filter(d => !d.projectId && !d.scheduledFor).slice(0, 4);
+                if (recentDrafts.length === 0) {
+                  return (
+                    <div className="py-8 text-center border border-[var(--border)] border-dashed rounded-xl bg-[var(--background)]">
+                      <p className="text-[var(--muted)] text-sm">No independent drafts found.</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {recentDrafts.map(draft => (
+                      <Link href={`/writer?id=${draft.id}`} key={draft.id} className="block p-4 bg-[var(--background)] border border-[var(--border)] rounded-xl hover:border-[var(--text)] transition group active:scale-[0.98]">
+                        <h3 className="font-medium group-hover:text-blue-500 transition-colors line-clamp-1">{draft.title || "Untitled Draft"}</h3>
+                        <p className="text-xs text-[var(--muted)] mt-2 line-clamp-2">{draft.cta || "No CTA specified..."}</p>
+                      </Link>
+                    ))}
+                  </div>
+                );
+              })()}
+            </section>
+          </div>
+
+          {/* Calendar Section - Lower visual weight */}
+          <div className="order-2 lg:order-1">
+            <section className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-sm hover:border-[var(--text)]/20 transition-colors">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <CalendarIcon size={18} className="text-[var(--muted)]" />
+                  This Week
+                </h2>
+                <Link href="/calendar" className="text-sm font-medium text-[var(--muted)] hover:text-[var(--text)] transition flex items-center gap-1">
+                  View Month
+                </Link>
+              </div>
+              <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                {weekDays.map((date) => {
+                  const dayItems = scheduledItems.filter(item => item.scheduledFor && isSameDay(new Date(item.scheduledFor), date));
+                  const isTodayDate = isToday(date);
+                  return (
+                    <Link href="/calendar" key={date.toISOString()} className={`flex flex-col items-center justify-center p-2 rounded-lg border transition group hover:border-[var(--text)] hover:shadow-sm ${isTodayDate ? 'border-[var(--text)] bg-[var(--background)] shadow-sm' : 'border-[var(--border)] bg-[var(--background)]'}`}>
+                      <span className={`text-[10px] uppercase tracking-wider ${isTodayDate ? 'text-[var(--text)] font-semibold' : 'text-[var(--muted)]'}`}>{format(date, 'EE')}</span>
+                      <span className={`text-base font-medium mt-0.5 ${isTodayDate ? 'text-[var(--text)]' : 'text-[var(--muted)]'}`}>{format(date, 'd')}</span>
+                      <div className="flex gap-0.5 mt-1.5 h-1 min-h-[4px]">
+                        {dayItems.slice(0, 3).map((item) => (
+                          <div key={item.id} className={`w-1 h-1 rounded-full ${item.status === 'published' ? 'bg-green-500' : item.status === 'scheduled' ? 'bg-blue-500' : 'bg-[var(--muted)]'}`} />
+                        ))}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
 
         </div>
       </div>

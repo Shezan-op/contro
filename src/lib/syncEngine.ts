@@ -141,7 +141,7 @@ export class SyncEngine {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const tables: (keyof Tables)[] = ['projects', 'content_items', 'tasks', 'lead_magnets'];
+      const tables: (keyof Tables)[] = ['workspaces', 'inventory_libraries', 'inventory', 'projects', 'content_items', 'tasks', 'lead_magnets'];
       
       for (const table of tables) {
         const { data, error } = await supabase.from(table).select('*');
@@ -162,12 +162,22 @@ export class SyncEngine {
     if (payload.eventType === 'DELETE') {
       const oldPayload = payload.old as Record<string, string>;
       const oldId = oldPayload.id;
-      const local = await db.content.get(oldId);
-      // Local data always wins against deletion if it has pending changes
-      if (local && local.syncStatus === 'pending') {
-        console.warn("Conflict detected for deletion of", oldId, "Keeping local changes.");
+      
+      const table = payload.table as string;
+      if (table === 'workspaces') {
+        await db.workspaces.delete(oldId);
+      } else if (table === 'inventory_libraries') {
+        await db.inventoryLibraries.delete(oldId);
+      } else if (table === 'inventory') {
+        await db.inventoryItems.delete(oldId);
       } else {
-        await db.content.delete(oldId);
+        const local = await db.content.get(oldId);
+        // Local data always wins against deletion if it has pending changes
+        if (local && local.syncStatus === 'pending') {
+          console.warn("Conflict detected for deletion of", oldId, "Keeping local changes.");
+        } else {
+          await db.content.delete(oldId);
+        }
       }
     } else {
       await this.mergeRemoteItem(payload.table as string, payload.new as Record<string, unknown>);
@@ -177,6 +187,43 @@ export class SyncEngine {
 
   static async mergeRemoteItem(table: keyof Tables | string, remote: Record<string, unknown>) {
     const remoteId = remote.id as string;
+    
+    if (table === 'workspaces') {
+      const localWorkspace = await db.workspaces.get(remoteId);
+      if (!localWorkspace) {
+        await db.workspaces.put({
+          id: remoteId,
+          name: remote.name as string,
+          isPersonal: remote.isPersonal as boolean,
+          createdAt: remote.created_at as string || new Date().toISOString(),
+          updatedAt: remote.updated_at as string || new Date().toISOString()
+        });
+      }
+      return;
+    }
+
+    if (table === 'inventory_libraries') {
+      await db.inventoryLibraries.put({
+        id: remoteId,
+        workspaceId: remote.workspaceId as string,
+        name: remote.name as string,
+        order: remote.order as number,
+        icon: remote.icon as string
+      });
+      return;
+    }
+
+    if (table === 'inventory') {
+      await db.inventoryItems.put({
+        id: remoteId,
+        workspaceId: remote.workspaceId as string,
+        libraryId: remote.libraryId as string,
+        text: remote.text as string,
+        order: remote.order as number
+      });
+      return;
+    }
+
     const local = await db.content.get(remoteId);
     
     let type: UniversalContent['type'] = 'DRAFT';

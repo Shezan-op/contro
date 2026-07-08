@@ -188,7 +188,8 @@ export default function CalendarPage() {
               return (
                 <div 
                   key={date.toISOString()} 
-                  className={`min-h-[120px] rounded-xl border flex flex-col p-2 transition-colors ${isCurrentDay ? 'border-[var(--text)] bg-[var(--surface)]/50' : 'border-[var(--border)] hover:border-[var(--muted)]'}`}
+                  onClick={() => router.push(`/writer?new=true&date=${date.toISOString()}`)}
+                  className={`min-h-[120px] rounded-xl border flex flex-col p-2 transition-colors cursor-pointer ${isCurrentDay ? 'border-[var(--text)] bg-[var(--surface)]/50' : 'border-[var(--border)] hover:border-[var(--muted)]'}`}
                   onDrop={(e) => handleDrop(e, date)}
                   onDragOver={handleDragOver}
                 >
@@ -197,15 +198,9 @@ export default function CalendarPage() {
                       {format(date, "d")}
                     </span>
                     <button type="button" 
-                      onClick={async () => {
-                        const { workspaceId } = useAppStore.getState();
-                        if (workspaceId) {
-                          const newContent = await ContentService.create(workspaceId, 'DRAFT', { 
-                            scheduledFor: date.toISOString(),
-                            status: 'scheduled'
-                          });
-                          router.push(`/writer?id=${newContent.id}`);
-                        }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/writer?new=true&date=${date.toISOString()}`);
                       }}
                       className="opacity-0 hover:opacity-100 text-[var(--muted)] hover:text-[var(--text)] transition focus:opacity-100"
                       aria-label={`Create post on ${format(date, "MMMM d")}`}
@@ -220,8 +215,14 @@ export default function CalendarPage() {
                         type="button"
                         key={item.id}
                         draggable
-                        onDragStart={(e) => handleDragStart(e, item.id)}
-                        onClick={() => setSelectedItem(item)}
+                        onDragStart={(e) => {
+                          e.stopPropagation();
+                          handleDragStart(e, item.id);
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedItem(item);
+                        }}
                         className={`w-full text-left text-xs p-2 rounded-lg border cursor-pointer hover:shadow-md transition-shadow group ${getStatusColor(item.status)}`}
                       >
                         <div className="font-semibold truncate mb-1 text-[var(--text)] group-hover:text-current">{item.title || 'Untitled'}</div>
