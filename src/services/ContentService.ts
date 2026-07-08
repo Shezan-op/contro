@@ -42,7 +42,7 @@ export class ContentService {
       isArchived: content.isArchived,
       isTrashed: content.isTrashed,
       projectId: content.projectId,
-      body: content.body as unknown,
+      body: content.body as any,
       cta: content.cta,
       scheduledFor: content.scheduledFor,
       created_at: content.createdAt,
@@ -63,7 +63,7 @@ export class ContentService {
     const supabase = createClient();
     useAppStore.getState().setLoadingState('Saving...');
 
-    const payload: Record<string, unknown> = {
+    const payload: any = {
       updated_at: new Date().toISOString()
     };
 
@@ -199,7 +199,7 @@ export class ContentService {
     useAppStore.getState().setLoadingState(null);
   }
 
-  private static mapToUniversal(remote: Record<string, unknown>): UniversalContent {
+  private static mapToUniversal(remote: any): UniversalContent {
     return {
       id: remote.id,
       workspaceId: remote.workspaceId,

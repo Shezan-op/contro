@@ -102,7 +102,7 @@ export class InventoryService {
     const supabase = createClient();
     useAppStore.getState().setLoadingState('Saving...');
 
-    const payload: Record<string, unknown> = {
+    const payload: any = {
       updated_at: new Date().toISOString()
     };
     if (updates.name !== undefined) payload.name = updates.name;
@@ -221,7 +221,7 @@ export class InventoryService {
     const supabase = createClient();
     useAppStore.getState().setLoadingState('Saving...');
 
-    const payload: Record<string, unknown> = {
+    const payload: any = {
       updated_at: new Date().toISOString()
     };
     if (title !== undefined) payload.title = title;
